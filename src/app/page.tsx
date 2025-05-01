@@ -102,75 +102,198 @@ export default function BioSignalVisualizer() {
   }));
 
   return (
-    <div className={`flex flex-col h-screen ${darkMode ? 'bg-gray-900 text-white' : 'bg-gray-50'}`}>
-      <header className={`${darkMode ? 'bg-gray-800' : 'bg-white'} shadow-md p-4`}>
+    <div className={`flex flex-col h-screen ${darkMode ? 'bg-gradient-to-b from-gray-900 to-gray-800' : 'bg-gradient-to-b from-gray-50 to-gray-100'} transition-colors duration-300`}>
+      <header className={`${darkMode ? 'bg-gray-800 border-b border-gray-700' : 'bg-white/90 backdrop-blur-sm border-b border-gray-200'} shadow-lg p-4 transition-colors duration-300`}>
         <div className="container mx-auto flex justify-between items-center">
-          <div className="flex items-center space-x-2">
-            <Activity className="h-8 w-8 text-blue-500" />
-            <h1 className="text-2xl font-bold">Visualizer</h1>
+          <div className="flex items-center space-x-3">
+            <Activity className={`h-8 w-8 ${darkMode ? 'text-blue-400' : 'text-blue-600'}`} />
+            <h1 className="text-2xl font-light tracking-tight">
+              <span className="font-bold">Bio</span>Signal
+              <span className="text-blue-500 font-medium ml-1">Visualizer</span>
+            </h1>
           </div>
           <div className="flex items-center space-x-4">
-            <button onClick={() => setIsLive(!isLive)} className={`flex items-center px-3 py-1 rounded ${isLive ? 'bg-green-500 text-white' : 'bg-gray-300'}`}>
-              <Monitor className="h-4 w-4 mr-1" />{isLive ? 'Live' : 'Paused'}
+            <button 
+              onClick={() => setIsLive(!isLive)} 
+              className={`flex items-center px-4 py-2 rounded-full text-sm font-medium transition-all duration-300 ${
+                isLive 
+                  ? (darkMode ? 'bg-green-600 hover:bg-green-700' : 'bg-green-500 hover:bg-green-600') 
+                  : (darkMode ? 'bg-gray-700 hover:bg-gray-600' : 'bg-gray-200 hover:bg-gray-300')
+              } text-white shadow-sm`}
+            >
+              <Monitor className="h-4 w-4 mr-2" strokeWidth={2} />
+              {isLive ? 'Live' : 'Paused'}
             </button>
-            <button onClick={() => setDarkMode(!darkMode)} className={`p-2 rounded ${darkMode ? 'bg-gray-700' : 'bg-gray-200'}`}>
-              <Settings className="h-5 w-5" />
+            <button 
+              onClick={() => setDarkMode(!darkMode)} 
+              className={`p-2 rounded-full transition-all duration-300 ${
+                darkMode 
+                  ? 'bg-gray-700 hover:bg-gray-600 text-gray-200' 
+                  : 'bg-gray-200 hover:bg-gray-300 text-gray-700'
+              } shadow-sm`}
+            >
+              <Settings className="h-5 w-5" strokeWidth={2} />
             </button>
           </div>
         </div>
       </header>
-      <main className="flex-1 container mx-auto p-4 overflow-auto">
-        <div className="flex h-full gap-4">
-          {/* First Column (20%) - Box Image */}
-          <div className="w-1/5 flex flex-col">
-            <div className={`flex-1 rounded-lg shadow-lg p-4 ${darkMode ? 'bg-gray-800' : 'bg-white'} flex items-center justify-center`}>
-              <Box className="h-32 w-32" strokeWidth={1} />
+      
+      <main className="flex-1 container mx-auto px-4 py-6 overflow-auto">
+        <div className="grid grid-cols-1 md:grid-cols-5 gap-6 h-full">
+          {/* First Column (20%) - Device Info */}
+          <div className="md:col-span-1 flex flex-col gap-6">
+            <div className={`flex-1 rounded-2xl shadow-lg p-6 ${
+              darkMode 
+                ? 'bg-gray-800/80 border border-gray-700' 
+                : 'bg-white/90 border border-gray-100'
+            } flex flex-col items-center justify-center transition-colors duration-300`}>
+              <div className={`p-6 rounded-full mb-4 ${
+                darkMode ? 'bg-gray-700' : 'bg-blue-50'
+              } transition-colors duration-300`}>
+                <Box className={`h-16 w-16 ${darkMode ? 'text-blue-400' : 'text-blue-500'}`} strokeWidth={1.5} />
+              </div>
+              <h3 className="text-lg font-semibold mb-2">BioSignal X2</h3>
+              <p className={`text-center ${darkMode ? 'text-gray-400' : 'text-gray-500'}`}>
+                Professional biometric monitoring device
+              </p>
             </div>
-            <div className={`flex-1 rounded-lg shadow-lg p-4 ${darkMode ? 'bg-gray-800' : 'bg-white'} flex items-center justify-center`}>
-              <p className={darkMode ? 'text-gray-300' : 'text-gray-600'}>Device Status</p>
+            
+            <div className={`flex-1 rounded-2xl shadow-lg p-6 ${
+              darkMode 
+                ? 'bg-gray-800/80 border border-gray-700' 
+                : 'bg-white/90 border border-gray-100'
+            } flex flex-col transition-colors duration-300`}>
+              <h3 className="text-lg font-semibold mb-4">Device Status</h3>
+              <div className={`flex items-center mb-4 ${darkMode ? 'text-gray-300' : 'text-gray-600'}`}>
+                <div className="w-3 h-3 rounded-full bg-green-500 mr-2"></div>
+                <span>Connected</span>
+              </div>
+              <div className="space-y-3">
+                <div className="flex justify-between items-center">
+                  <span className={`text-sm ${darkMode ? 'text-gray-400' : 'text-gray-500'}`}>Battery</span>
+                  <span className={`font-medium ${darkMode ? 'text-gray-200' : 'text-gray-700'}`}>92%</span>
+                </div>
+                <div className="flex justify-between items-center">
+                  <span className={`text-sm ${darkMode ? 'text-gray-400' : 'text-gray-500'}`}>Signal Quality</span>
+                  <span className={`font-medium ${darkMode ? 'text-gray-200' : 'text-gray-700'}`}>Excellent</span>
+                </div>
+                <div className="flex justify-between items-center">
+                  <span className={`text-sm ${darkMode ? 'text-gray-400' : 'text-gray-500'}`}>Storage</span>
+                  <span className={`font-medium ${darkMode ? 'text-gray-200' : 'text-gray-700'}`}>4.2GB Free</span>
+                </div>
+              </div>
             </div>
           </div>
 
           {/* Second Column (40%) - EEG */}
-          <div className="w-2/5 flex flex-col">
+          <div className="md:col-span-2 flex flex-col gap-6">
             {/* EEG Row 1: Brain Image */}
-            <div className={`h-1/3 rounded-lg shadow-lg p-4 ${darkMode ? 'bg-gray-800' : 'bg-white'} flex flex-col items-center justify-center`}>
-              <Brain className="h-16 w-16 mb-2" strokeWidth={1} />
-              <h2 className="text-xl font-semibold">Brain Activity (EEG)</h2>
+            <div className={`rounded-2xl shadow-lg p-6 ${
+              darkMode 
+                ? 'bg-gray-800/80 border border-gray-700' 
+                : 'bg-white/90 border border-gray-100'
+            } flex flex-col items-center justify-center transition-colors duration-300`}>
+              <div className={`p-6 rounded-full mb-2 ${
+                darkMode ? 'bg-purple-900/30' : 'bg-purple-50'
+              } transition-colors duration-300`}>
+                <Brain className={`h-12 w-12 ${darkMode ? 'text-purple-400' : 'text-purple-500'}`} strokeWidth={1.5} />
+              </div>
+              <h2 className="text-xl font-semibold mb-1">Brain Activity</h2>
+              <p className={`text-sm ${darkMode ? 'text-gray-400' : 'text-gray-500'}`}>Electroencephalogram (EEG)</p>
             </div>
 
             {/* EEG Row 2: Spider Plot */}
-            <div className={`h-1/3 rounded-lg shadow-lg p-4 ${darkMode ? 'bg-gray-800' : 'bg-white'}`}>
-              <div className="h-full">
+            <div className={`flex-1 rounded-2xl shadow-lg p-6 ${
+              darkMode 
+                ? 'bg-gray-800/80 border border-gray-700' 
+                : 'bg-white/90 border border-gray-100'
+            } transition-colors duration-300`}>
+              <h3 className="text-lg font-semibold mb-4">Brainwave Distribution</h3>
+              <div className="h-64">
                 <ResponsiveContainer width="100%" height="100%">
-                  <RadarChart cx="50%" cy="50%" outerRadius="80%" data={radarData}>
-                    <PolarGrid />
-                    <PolarAngleAxis dataKey="subject" />
-                    <PolarRadiusAxis angle={30} domain={[0, 50]} />
-                    <Radar name="EEG" dataKey="value" stroke="#8884d8" fill="#8884d8" fillOpacity={0.6} />
+                  <RadarChart cx="50%" cy="50%" outerRadius="70%" data={radarData}>
+                    <PolarGrid strokeDasharray="3 3" stroke={darkMode ? '#4b5563' : '#d1d5db'} />
+                    <PolarAngleAxis 
+                      dataKey="subject" 
+                      tick={{ fill: darkMode ? '#e5e7eb' : '#4b5563', fontSize: 12 }}
+                    />
+                    <PolarRadiusAxis angle={30} domain={[0, 50]} tick={{ fill: darkMode ? '#9ca3af' : '#6b7280' }} />
+                    <Radar 
+                      name="EEG" 
+                      dataKey="value" 
+                      stroke={darkMode ? '#a78bfa' : '#8b5cf6'} 
+                      fill={darkMode ? '#a78bfa' : '#8b5cf6'} 
+                      fillOpacity={0.6} 
+                    />
                   </RadarChart>
                 </ResponsiveContainer>
               </div>
             </div>
 
             {/* EEG Row 3: EEG Chart */}
-            <div className={`h-1/3 rounded-lg shadow-lg p-4 ${darkMode ? 'bg-gray-800' : 'bg-white'}`}>
-              <div className="flex justify-end items-center mb-2 space-x-1">
-                {Object.keys(channelColors).map(ch => (
-                  <button key={ch} onClick={() => toggleChannel(ch)} className="flex items-center px-2 py-1 text-xs rounded" style={{ backgroundColor: eegChannels.includes(ch) ? channelColors[ch] : 'transparent', color: eegChannels.includes(ch) ? 'white' : (darkMode ? 'white' : 'black'), border: `1px solid ${channelColors[ch]}` }}>
-                    {ch}
-                  </button>
-                ))}
+            <div className={`flex-1 rounded-2xl shadow-lg p-6 ${
+              darkMode 
+                ? 'bg-gray-800/80 border border-gray-700' 
+                : 'bg-white/90 border border-gray-100'
+            } transition-colors duration-300`}>
+              <div className="flex justify-between items-center mb-4">
+                <h3 className="text-lg font-semibold">Brainwave Patterns</h3>
+                <div className="flex space-x-2">
+                  {Object.keys(channelColors).map(ch => (
+                    <button 
+                      key={ch} 
+                      onClick={() => toggleChannel(ch)} 
+                      className={`px-3 py-1 text-xs rounded-full font-medium transition-all duration-200 ${
+                        eegChannels.includes(ch) 
+                          ? 'text-white shadow-sm' 
+                          : `text-gray-600 bg-transparent border ${darkMode ? 'border-gray-600' : 'border-gray-300'}`
+                      }`}
+                      style={{ backgroundColor: eegChannels.includes(ch) ? channelColors[ch] : 'transparent' }}
+                    >
+                      {ch}
+                    </button>
+                  ))}
+                </div>
               </div>
               <div className="h-48">
                 <ResponsiveContainer width="100%" height="100%">
-                  <LineChart data={eegData}>
-                    <CartesianGrid strokeDasharray="3 3" stroke={darkMode ? '#555' : '#ccc'} />
-                    <XAxis dataKey="time" stroke={darkMode ? '#aaa' : '#666'} />
-                    <YAxis stroke={darkMode ? '#aaa' : '#666'} />
-                    <Tooltip contentStyle={{ backgroundColor: darkMode ? '#333' : '#fff', borderColor: darkMode ? '#555' : '#ccc' }} labelStyle={{ color: darkMode ? '#eee' : '#333' }} />
+                  <LineChart data={eegData} margin={{ top: 5, right: 20, bottom: 5, left: -10 }}>
+                    <CartesianGrid 
+                      strokeDasharray="3 3" 
+                      stroke={darkMode ? '#374151' : '#e5e7eb'} 
+                      vertical={false}
+                    />
+                    <XAxis 
+                      dataKey="time" 
+                      stroke={darkMode ? '#9ca3af' : '#6b7280'} 
+                      tick={{ fill: darkMode ? '#9ca3af' : '#6b7280', fontSize: 12 }} 
+                      axisLine={{ stroke: darkMode ? '#4b5563' : '#d1d5db' }}
+                    />
+                    <YAxis 
+                      stroke={darkMode ? '#9ca3af' : '#6b7280'} 
+                      tick={{ fill: darkMode ? '#9ca3af' : '#6b7280', fontSize: 12 }}
+                      axisLine={{ stroke: darkMode ? '#4b5563' : '#d1d5db' }}
+                    />
+                    <Tooltip 
+                      contentStyle={{ 
+                        backgroundColor: darkMode ? '#1f2937' : '#ffffff', 
+                        borderColor: darkMode ? '#374151' : '#e5e7eb',
+                        borderRadius: '0.5rem',
+                        boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06)'
+                      }} 
+                      labelStyle={{ color: darkMode ? '#e5e7eb' : '#111827', fontWeight: 600, marginBottom: '4px' }} 
+                      itemStyle={{ padding: '2px 0' }}
+                    />
                     {eegChannels.map(ch => (
-                      <Line key={ch} type="monotone" dataKey={ch} stroke={channelColors[ch]} strokeWidth={2} dot={false} isAnimationActive={false} />
+                      <Line 
+                        key={ch} 
+                        type="monotone" 
+                        dataKey={ch} 
+                        stroke={channelColors[ch]} 
+                        strokeWidth={2} 
+                        dot={false} 
+                        isAnimationActive={false} 
+                      />
                     ))}
                   </LineChart>
                 </ResponsiveContainer>
@@ -179,33 +302,100 @@ export default function BioSignalVisualizer() {
           </div>
 
           {/* Third Column (40%) - ECG */}
-          <div className="w-2/5 flex flex-col">
+          <div className="md:col-span-2 flex flex-col gap-6">
             {/* ECG Row 1: Heart Image */}
-            <div className={`h-1/3 rounded-lg shadow-lg p-4 ${darkMode ? 'bg-gray-800' : 'bg-white'} flex flex-col items-center justify-center`}>
-              <Heart className="h-16 w-16 mb-2" strokeWidth={1} />
-              <h2 className="text-xl font-semibold">Heart Activity (ECG)</h2>
+            <div className={`rounded-2xl shadow-lg p-6 ${
+              darkMode 
+                ? 'bg-gray-800/80 border border-gray-700' 
+                : 'bg-white/90 border border-gray-100'
+            } flex flex-col items-center justify-center transition-colors duration-300`}>
+              <div className={`p-6 rounded-full mb-2 ${
+                darkMode ? 'bg-red-900/30' : 'bg-red-50'
+              } transition-colors duration-300`}>
+                <Heart className={`h-12 w-12 ${darkMode ? 'text-red-400' : 'text-red-500'}`} strokeWidth={1.5} />
+              </div>
+              <h2 className="text-xl font-semibold mb-1">Heart Activity</h2>
+              <p className={`text-sm ${darkMode ? 'text-gray-400' : 'text-gray-500'}`}>Electrocardiogram (ECG)</p>
             </div>
 
             {/* ECG Row 2: BPM Info */}
-            <div className={`h-1/3 rounded-lg shadow-lg p-4 ${darkMode ? 'bg-gray-800' : 'bg-white'} flex flex-col items-center justify-center`}>
-              <div className="text-4xl font-bold mb-2" style={{ color: darkMode ? '#ff4560' : '#ff4560' }}>
-                {Math.floor(60 + Math.random() * 40)} BPM
+            <div className={`flex-1 rounded-2xl shadow-lg p-6 ${
+              darkMode 
+                ? 'bg-gray-800/80 border border-gray-700' 
+                : 'bg-white/90 border border-gray-100'
+            } transition-colors duration-300`}>
+              <h3 className="text-lg font-semibold mb-6">Heart Rate Analysis</h3>
+              <div className="flex items-center justify-center">
+                <div className={`text-center p-6 rounded-full ${
+                  darkMode ? 'bg-red-900/20' : 'bg-red-50'
+                } transition-colors duration-300`}>
+                  <div className={`text-5xl font-bold ${darkMode ? 'text-red-400' : 'text-red-500'}`}>
+                    {Math.floor(60 + Math.random() * 40)}
+                  </div>
+                  <div className="text-sm mt-1 font-medium">BPM</div>
+                </div>
               </div>
-              <div className={`text-sm ${darkMode ? 'text-gray-300' : 'text-gray-600'}`}>
-                {Math.floor(60 + Math.random() * 40) > 90 ? 'Elevated' : 'Normal'} heart rate
+              <div className="mt-6 flex justify-center">
+                <div className={`px-4 py-2 rounded-full text-sm font-medium ${
+                  Math.floor(60 + Math.random() * 40) > 90 
+                    ? (darkMode ? 'text-amber-200 bg-amber-900/20' : 'text-amber-700 bg-amber-50') 
+                    : (darkMode ? 'text-green-200 bg-green-900/20' : 'text-green-700 bg-green-50')
+                }`}>
+                  {Math.floor(60 + Math.random() * 40) > 90 ? 'Elevated' : 'Normal'} heart rate
+                </div>
               </div>
             </div>
 
             {/* ECG Row 3: ECG Chart */}
-            <div className={`h-1/3 rounded-lg shadow-lg p-4 ${darkMode ? 'bg-gray-800' : 'bg-white'}`}>
+            <div className={`flex-1 rounded-2xl shadow-lg p-6 ${
+              darkMode 
+                ? 'bg-gray-800/80 border border-gray-700' 
+                : 'bg-white/90 border border-gray-100'
+            } transition-colors duration-300`}>
+              <div className="flex justify-between items-center mb-4">
+                <h3 className="text-lg font-semibold">Cardiac Rhythm</h3>
+                <div className={`px-3 py-1 text-xs rounded-full ${
+                  darkMode ? 'bg-green-900/20 text-green-300' : 'bg-green-100 text-green-700'
+                } font-medium`}>
+                  Normal Sinus Rhythm
+                </div>
+              </div>
               <div className="h-48">
                 <ResponsiveContainer width="100%" height="100%">
-                  <LineChart data={ecgData}>
-                    <CartesianGrid strokeDasharray="3 3" stroke={darkMode ? '#555' : '#ccc'} />
-                    <XAxis dataKey="time" stroke={darkMode ? '#aaa' : '#666'} />
-                    <YAxis stroke={darkMode ? '#aaa' : '#666'} />
-                    <Tooltip contentStyle={{ backgroundColor: darkMode ? '#333' : '#fff', borderColor: darkMode ? '#555' : '#ccc' }} labelStyle={{ color: darkMode ? '#eee' : '#333' }} />
-                    <Line type="monotone" dataKey="value" stroke="#ff4560" strokeWidth={2} dot={false} isAnimationActive={false} />
+                  <LineChart data={ecgData} margin={{ top: 5, right: 20, bottom: 5, left: -10 }}>
+                    <CartesianGrid 
+                      strokeDasharray="3 3" 
+                      stroke={darkMode ? '#374151' : '#e5e7eb'} 
+                      vertical={false}
+                    />
+                    <XAxis 
+                      dataKey="time" 
+                      stroke={darkMode ? '#9ca3af' : '#6b7280'} 
+                      tick={{ fill: darkMode ? '#9ca3af' : '#6b7280', fontSize: 12 }} 
+                      axisLine={{ stroke: darkMode ? '#4b5563' : '#d1d5db' }}
+                    />
+                    <YAxis 
+                      stroke={darkMode ? '#9ca3af' : '#6b7280'} 
+                      tick={{ fill: darkMode ? '#9ca3af' : '#6b7280', fontSize: 12 }}
+                      axisLine={{ stroke: darkMode ? '#4b5563' : '#d1d5db' }}
+                    />
+                    <Tooltip 
+                      contentStyle={{ 
+                        backgroundColor: darkMode ? '#1f2937' : '#ffffff', 
+                        borderColor: darkMode ? '#374151' : '#e5e7eb',
+                        borderRadius: '0.5rem',
+                        boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06)'
+                      }} 
+                      labelStyle={{ color: darkMode ? '#e5e7eb' : '#111827', fontWeight: 600 }} 
+                    />
+                    <Line 
+                      type="monotone" 
+                      dataKey="value" 
+                      stroke={darkMode ? '#f87171' : '#ef4444'} 
+                      strokeWidth={2} 
+                      dot={false} 
+                      isAnimationActive={false} 
+                    />
                   </LineChart>
                 </ResponsiveContainer>
               </div>
@@ -213,12 +403,26 @@ export default function BioSignalVisualizer() {
           </div>
         </div>
       </main>
-      <footer className={`py-3 px-4 ${darkMode ? 'bg-gray-800' : 'bg-white'} shadow-inner`}>
-        <div className="container mx-auto flex justify-between items-center text-sm">
-          <div className={darkMode ? 'text-gray-400' : 'text-gray-500'}>© {new Date().getFullYear()} Visualizer</div>
-          <div className="flex space-x-4">
-            <span className={darkMode ? 'text-gray-400' : 'text-gray-500'}>Sampling Rate: 250 Hz</span>
-            <span className={darkMode ? 'text-gray-400' : 'text-gray-500'}>Filter: 0.5-50 Hz</span>
+      
+      <footer className={`py-4 px-6 ${
+        darkMode 
+          ? 'bg-gray-800 border-t border-gray-700' 
+          : 'bg-white/90 backdrop-blur-sm border-t border-gray-200'
+      } shadow-inner transition-colors duration-300`}>
+        <div className="container mx-auto flex flex-col md:flex-row justify-between items-center text-sm">
+          <div className={`${darkMode ? 'text-gray-400' : 'text-gray-500'} mb-2 md:mb-0`}>
+            <span className="font-medium">BioSignal Visualizer</span> © {new Date().getFullYear()} 
+          </div>
+          <div className="flex flex-wrap justify-center md:justify-end gap-4">
+            <span className={`${darkMode ? 'text-gray-400' : 'text-gray-500'} px-3 py-1 rounded-full ${
+              darkMode ? 'bg-gray-700' : 'bg-gray-100'
+            }`}>Sampling Rate: 250 Hz</span>
+            <span className={`${darkMode ? 'text-gray-400' : 'text-gray-500'} px-3 py-1 rounded-full ${
+              darkMode ? 'bg-gray-700' : 'bg-gray-100'
+            }`}>Filter: 0.5-50 Hz</span>
+            <span className={`${darkMode ? 'text-gray-400' : 'text-gray-500'} px-3 py-1 rounded-full ${
+              darkMode ? 'bg-gray-700' : 'bg-gray-100'
+            }`}>Version 1.2.4</span>
           </div>
         </div>
       </footer>
