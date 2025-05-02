@@ -1,117 +1,135 @@
 'use client'
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, RadarChart, PolarGrid, PolarAngleAxis, PolarRadiusAxis, Radar } from 'recharts';
 import { Activity, Brain, Settings, Info, Monitor, Heart, Box } from 'lucide-react';
 
-interface EEGDataEntry {
-  time: number;
-  [key: string]: number;
-}
+interface EEGDataEntry { time: number; ch0: number; ch1: number; ch2: number; }
+interface ECGDataEntry { time: number; ch0: number; ch1: number; ch2: number; }
 
-interface ECGDataEntry {
-  time: number;
-  value: number;
-}
-
-const generateEEGData = (points = 100): EEGDataEntry[] => {
-  const data: EEGDataEntry[] = [];
-  const channels = ['Alpha', 'Beta', 'Gamma', 'Delta', 'Theta'] as const;
-  const frequencies = { Alpha: 0.1, Beta: 0.2, Gamma: 0.4, Delta: 0.05, Theta: 0.08 } as const;
-  const amplitudes = { Alpha: 20, Beta: 10, Gamma: 5, Delta: 30, Theta: 15 } as const;
-
-  for (let i = 0; i < points; i++) {
-    const entry: EEGDataEntry = { time: i };
-    channels.forEach(channel => {
-      const freq = frequencies[channel];
-      const amp = amplitudes[channel];
-      entry[channel] = Math.sin(i * freq) * amp + Math.sin(i * freq * 2.5) * (amp * 0.5) + (Math.random() * 5 - 2.5);
-    });
-    data.push(entry);
-  }
-  return data;
-};
+const SERVICE_UUID = "4fafc201-1fb5-459e-8fcc-c5c9c331914b";
+const DATA_CHAR_UUID = "beb5483e-36e1-4688-b7f5-ea07361b26a8";
+const CONTROL_CHAR_UUID = "0000ff01-0000-1000-8000-00805f9b34fb";
 
 
-const generateECGData = (points = 100): ECGDataEntry[] => {
-  const data: ECGDataEntry[] = [];
-  for (let i = 0; i < points; i++) {
-    let value = 70;
-    const position = i % 20;
-    if (position === 3) value += 15;
-    else if (position === 6) value -= 20;
-    else if (position === 7) value += 80;
-    else if (position === 8) value -= 40;
-    else if (position === 12) value += 20;
-    value += (Math.random() * 4 - 2);
-    data.push({ time: i, value });
-  }
-  return data;
-};
 
 export default function BioSignalVisualizer() {
   const [eegData, setEegData] = useState<EEGDataEntry[]>([]);
   const [ecgData, setEcgData] = useState<ECGDataEntry[]>([]);
+  const [eegChannels, setEegChannels] = useState(['ch0', 'ch1', 'ch2']);
+  const [ecgChannels, setEcgChannels] = useState(['ch0', 'ch1', 'ch2']);
   const [isLive, setIsLive] = useState(true);
-  const [eegChannels, setEegChannels] = useState(['Alpha', 'Beta', 'Gamma', 'Delta', 'Theta']);
+  const [connected, setConnected] = useState(false);
+  const [streaming, setStreaming] = useState(false);
   const [darkMode, setDarkMode] = useState(false);
   const [bpm, setBpm] = useState<number | null>(null);
 
-  useEffect(() => {
-    setEegData(generateEEGData());
-    setEcgData(generateECGData());
-    let interval: ReturnType<typeof setInterval>;
-    if (isLive) {
-      interval = setInterval(() => {
-        setEegData(prev => {
-          const nextTime = prev[prev.length - 1].time + 1;
-          const newEntry: EEGDataEntry = { time: nextTime } as any;
-          eegChannels.forEach(channel => {
-            const lastVal = prev[prev.length - 1][channel];
-            newEntry[channel] = lastVal + (Math.random() * (channel === 'Delta' ? 12 : channel === 'Alpha' ? 10 : channel === 'Beta' ? 8 : channel === 'Gamma' ? 4 : 8) - ((channel === 'Delta' ? 6 : channel === 'Alpha' ? 5 : channel === 'Beta' ? 4 : channel === 'Gamma' ? 2 : 4)));
-          });
-          return [...prev.slice(1), newEntry];
-        });
-        setEcgData(prev => {
-          const last = prev[prev.length - 1];
-          const nextTime = last.time + 1;
-          let value = last.value;
-          const pos = nextTime % 20;
-          if (pos === 3) value += 15;
-          else if (pos === 6) value -= 20;
-          else if (pos === 7) value += 80;
-          else if (pos === 8) value -= 40;
-          else if (pos === 12) value += 20;
-          value += (Math.random() * 4 - 2);
-          return [...prev.slice(1), { time: nextTime, value }];
-        });
-      }, 100);
-    }
-    return () => clearInterval(interval);
-  }, [isLive, eegChannels]);
+  // Refs for BLE
+  const deviceRef = useRef<BluetoothDevice | null>(null);
+  const controlRef = useRef<BluetoothRemoteGATTCharacteristic | null>(null);
+  const dataRef = useRef<BluetoothRemoteGATTCharacteristic | null>(null);
+  const timeIndex = useRef(0);
+
+  // BLE Functions
+  const connectBLE = async () => {
+    try {
+      const device = await navigator.bluetooth.requestDevice({ filters: [{ namePrefix: 'NPG' }], optionalServices: [SERVICE_UUID] });
+      deviceRef.current = device;
+      const server = await device.gatt!.connect();
+      const svc = await server.getPrimaryService(SERVICE_UUID);
+      controlRef.current = await svc.getCharacteristic(CONTROL_CHAR_UUID);
+      dataRef.current = await svc.getCharacteristic(DATA_CHAR_UUID);
+      setConnected(true);
+    } catch (err) { console.error('BLE connect error', err); }
+  };
+
+  const startStream = async () => {
+    if (!controlRef.current || !dataRef.current) return;
+    await controlRef.current.writeValue(new TextEncoder().encode('START'));
+    await dataRef.current.startNotifications();
+    dataRef.current.addEventListener('characteristicvaluechanged', handleNotification);
+    setStreaming(true);
+  };
+
+  const stopStream = async () => {
+    if (!dataRef.current) return;
+    await dataRef.current.stopNotifications();
+    dataRef.current.removeEventListener('characteristicvaluechanged', handleNotification);
+    setStreaming(false);
+  };
+
+  const disconnectBLE = () => {
+    stopStream();
+    deviceRef.current?.gatt?.disconnect();
+    setConnected(false);
+  };
+
+  // Handle incoming notifications
+  const handleNotification = (evt: Event) => {
+    const char = evt.target as BluetoothRemoteGATTCharacteristic;
+    const raw = new Uint8Array(char.value!.buffer);
+    // Parse three channels for EEG and ECG
+    const ch0 = raw[0] | (raw[1] << 8);
+    const ch1 = raw[2] | (raw[3] << 8);
+    const ch2 = raw[4] | (raw[5] << 8);
+
+    console.log(`EEG ch0:${ch0} ch1:${ch1} ch2:${ch2}`);
+
+    const newEEG: EEGDataEntry = { time: timeIndex.current, ch0, ch1, ch2 };
+    const newECG: ECGDataEntry = { time: timeIndex.current, ch0, ch1, ch2 };
+
+    setEegData(prev => [...prev.slice(-99), newEEG]);
+    setEcgData(prev => [...prev.slice(-99), newECG]);
+    setBpm(ch0);  // or any logic for BPM
+    timeIndex.current++;
+  };
+
+  // Cleanup on unmount
+  useEffect(() => () => disconnectBLE(), []);
+
+  // Toggle channel visibility
+  const toggleEegChannel = (ch: string) => {
+    setEegChannels(prev => {
+      if (prev.includes(ch)) {
+        // Prevent removing the last channel
+        if (prev.length === 1) return prev;
+        return prev.filter(x => x !== ch);
+      }
+      return [...prev, ch];
+    });
+  };
+
+  const toggleEcgChannel = (ch: string) => {
+    setEcgChannels(prev => prev.includes(ch) ? prev.filter(x => x !== ch) : [...prev, ch]);
+  };
+
+
 
   useEffect(() => {
     setBpm(Math.floor(60 + Math.random() * 40));
   }, []);
 
-  // Sophisticated color scheme with golden accents
+  // Assign distinct colors per channel
   const channelColors: Record<string, string> = {
-    Alpha: '#C29963', // Gold/bronze
-    Beta: '#548687',  // Teal
-    Gamma: '#9A7197', // Muted purple
-    Delta: '#CA8A73', // Copper
-    Theta: '#7C9885'  // Sage green
+    ch0: '#C29963',
+    ch1: '#548687',
+    ch2: '#9A7197'
   };
 
   const toggleChannel = (ch: string) => {
     setEegChannels(prev => prev.includes(ch) ? prev.filter(x => x !== ch) : [...prev, ch]);
   };
+  const radarData = (() => {
+    const last = eegData[eegData.length - 1];
+    return last
+      ? [
+        { subject: 'ch0', value: last.ch0 },
+        { subject: 'ch1', value: last.ch1 },
+        { subject: 'ch2', value: last.ch2 },
+      ]
+      : [];
+  })();
 
-  // Prepare data for radar chart
-  const radarData = eegChannels.map(channel => ({
-    subject: channel,
-    value: eegData.length > 0 ? Math.abs(eegData[eegData.length - 1][channel]) : 0,
-    fullMark: 50
-  }));
+
 
   // Light/dark mode color sets
   const bgGradient = darkMode ? 'bg-gradient-to-b from-zinc-900 to-neutral-900' : 'bg-gradient-to-b from-neutral-50 to-stone-100';
@@ -142,17 +160,44 @@ export default function BioSignalVisualizer() {
               <span className={`${primaryAccent} font-medium ml-1`}>Medusa</span>
             </h1>
           </div>
+
+
           <div className="flex items-center space-x-4">
-            <button
-              onClick={() => setIsLive(!isLive)}
-              className={`flex items-center px-3 py-1 rounded-full text-xs font-medium transition-all duration-300 ${isLive
-                ? buttonAccent
-                : buttonNeutral
-                } text-white shadow-sm`}
-            >
-              <Monitor className="h-3 w-3 mr-1" strokeWidth={2} />
-              {isLive ? 'Live' : 'Paused'}
-            </button>
+            <div className="flex items-center space-x-4">
+              <div className="flex space-x-2">
+                <button
+                  onClick={connectBLE}
+                  disabled={connected}
+                  className={`px-3 py-1 rounded-full transition-all duration-300 text-white ${connected ? 'bg-[#548687]' : 'bg-[#7C9885]'
+                    }`}
+                >
+                  {connected ? 'Connected' : 'Connect'}
+                </button>
+                <button
+                  onClick={startStream}
+                  disabled={!connected || streaming}
+                  className={`px-3 py-1 rounded-full transition-all duration-300 text-white ${streaming ? 'bg-[#9A7197]' : 'bg-[#C29963]'
+                    }`}
+                >
+                  {streaming ? 'Streaming' : 'Start'}
+                </button>
+                <button
+                  onClick={stopStream}
+                  disabled={!streaming}
+                  className="px-3 py-1 bg-[#CA8A73] rounded-full transition-all duration-300 text-white"
+                >
+                  Stop
+                </button>
+                <button
+                  onClick={disconnectBLE}
+                  disabled={!connected}
+                  className="px-3 py-1 bg-[#D9777B] rounded-full transition-all duration-300 text-white"
+                >
+                  Disconnect
+                </button>
+              </div>
+            </div>
+
             <button
               onClick={() => setDarkMode(!darkMode)}
               className={`p-1 rounded-full transition-all duration-300 ${darkMode
@@ -223,6 +268,7 @@ export default function BioSignalVisualizer() {
               <div className="h-40">
                 <ResponsiveContainer width="100%" height="100%">
                   <RadarChart cx="50%" cy="50%" outerRadius="70%" data={radarData}>
+
                     <PolarGrid strokeDasharray="3 3" stroke={gridLines} />
                     <PolarAngleAxis
                       dataKey="subject"
@@ -242,55 +288,36 @@ export default function BioSignalVisualizer() {
             </div>
 
             {/* EEG Row 3: EEG Chart */}
-            <div className={`flex-1 rounded-xl shadow-md p-3 border ${cardBg} transition-colors duration-300 flex flex-col`}>
-              <div className="flex justify-between items-center mb-2">
-                <h3 className={`text-base font-semibold ${textPrimary}`}>Brainwave Patterns</h3>
-                <div className="flex flex-wrap gap-1">
-                  {Object.keys(channelColors).map(ch => (
+            <div className="md:col-span-2 flex flex-col gap-3">
+              {/* Chart container */}
+              <div className={`flex-1 rounded-xl overflow-hidden p-2 transition-colors duration-300 ${darkMode ? 'bg-zinc-800/90' : 'bg-white'}`}>
+                {/* Channel toggles */}
+                <div className="flex gap-2 mb-2">
+                  {['ch0', 'ch1', 'ch2'].map(ch => (
                     <button
                       key={ch}
-                      onClick={() => toggleChannel(ch)}
-                      className={`px-2 py-0.5 text-xs rounded-full font-medium transition-all duration-200 ${eegChannels.includes(ch)
-                        ? 'text-white shadow-sm'
-                        : `${textSecondary} bg-transparent border ${darkMode ? 'border-zinc-600' : 'border-stone-300'}`
+                      onClick={() => toggleEcgChannel(ch)}
+                      disabled={ecgChannels.length === 1 && ecgChannels.includes(ch)}
+                      className={`px-2  rounded transition-all duration-200 ${ecgChannels.includes(ch) ? 'text-white' : 'text-gray-600'
                         }`}
-                      style={{ backgroundColor: eegChannels.includes(ch) ? channelColors[ch] : 'transparent' }}
+                      style={{
+                        backgroundColor: ecgChannels.includes(ch) ? channelColors[ch] : 'transparent',
+                        border: '1px solid ' + (ecgChannels.includes(ch) ? channelColors[ch] : '#cbd5e1'),
+                        opacity: ecgChannels.length === 1 && ecgChannels.includes(ch) ? 0.5 : 1,
+                        cursor: ecgChannels.length === 1 && ecgChannels.includes(ch) ? 'not-allowed' : 'pointer'
+                      }}
                     >
                       {ch}
                     </button>
                   ))}
                 </div>
-              </div>
-              <div className="flex-1">
-                <ResponsiveContainer width="100%" height="100%">
-                  <LineChart data={eegData} margin={{ top: 5, right: 5, bottom: 5, left: -10 }}>
-                    <CartesianGrid
-                      strokeDasharray="3 3"
-                      stroke={gridLines}
-                      vertical={false}
-                    />
-                    <XAxis
-                      dataKey="time"
-                      stroke={axisColor}
-                      tick={{ fill: axisColor, fontSize: 10 }}
-                      axisLine={{ stroke: axisColor }}
-                    />
-                    <YAxis
-                      stroke={axisColor}
-                      tick={{ fill: axisColor, fontSize: 10 }}
-                      axisLine={{ stroke: axisColor }}
-                    />
-                    <Tooltip
-                      contentStyle={{
-                        backgroundColor: tooltipBg,
-                        borderColor: tooltipBorder,
-                        borderRadius: '0.375rem',
-                        boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06)'
-                      }}
-                      labelStyle={{ color: darkMode ? '#e2e8f0' : '#0f172a', fontWeight: 600, marginBottom: '2px', fontSize: '12px' }}
-                      itemStyle={{ padding: '1px 0', fontSize: '11px' }}
-                    />
-                    {eegChannels.map(ch => (
+                <ResponsiveContainer width="100%" height={228}>
+                  <LineChart data={ecgData} margin={{ top: 5, right: 5, bottom: 5, left: -10 }}>
+                    <CartesianGrid strokeDasharray="3 3" />
+                    <XAxis dataKey="time" />
+                    <YAxis />
+                    <Tooltip />
+                    {ecgChannels.map(ch => (
                       <Line
                         key={ch}
                         type="monotone"
@@ -305,6 +332,7 @@ export default function BioSignalVisualizer() {
                 </ResponsiveContainer>
               </div>
             </div>
+
           </div>
 
           {/* Third Column (40%) - ECG */}
@@ -332,53 +360,45 @@ export default function BioSignalVisualizer() {
               </div>
             </div>
 
-            {/* ECG Row 3: ECG Chart */}
-            <div className={`flex-1 rounded-xl shadow-md p-3 border ${cardBg} transition-colors duration-300 flex flex-col`}>
-              <div className="flex justify-between items-center mb-2">
-                <h3 className={`text-base font-semibold ${textPrimary}`}>Cardiac Rhythm</h3>
-              </div>
-              <div className="flex-1">
-                <ResponsiveContainer width="100%" height="100%">
-                  <LineChart data={ecgData} margin={{ top: 5, right: 5, bottom: 5, left: -10 }}>
-                    <CartesianGrid
-                      strokeDasharray="3 3"
-                      stroke={gridLines}
-                      vertical={false}
-                    />
-                    <XAxis
-                      dataKey="time"
-                      stroke={axisColor}
-                      tick={{ fill: axisColor, fontSize: 10 }}
-                      axisLine={{ stroke: axisColor }}
-                    />
-                    <YAxis
-                      stroke={axisColor}
-                      tick={{ fill: axisColor, fontSize: 10 }}
-                      axisLine={{ stroke: axisColor }}
-                    />
-                    <Tooltip
-                      contentStyle={{
-                        backgroundColor: tooltipBg,
-                        borderColor: tooltipBorder,
-                        borderRadius: '0.375rem',
-                        boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06)'
+
+            {/* ECG Section */}
+            <div className="md:col-span-2 flex flex-col gap-3">
+
+
+              <div className={`flex-1 rounded-xl overflow-hidden transition-colors duration-300 p-2 ${darkMode ? 'bg-zinc-800/90' : 'bg-white'}`}>
+                <div className="flex gap-2 mb-2">
+                  {['ch0', 'ch1', 'ch2'].map(ch => (
+                    <button
+                      key={ch}
+                      onClick={() => toggleEcgChannel(ch)}
+                      disabled={ecgChannels.length === 1 && ecgChannels.includes(ch)}
+                      className={`px-2  rounded ${ecgChannels.includes(ch) ? 'text-white' : 'text-gray-600'} transition-all duration-200`}
+                      style={{
+                        backgroundColor: ecgChannels.includes(ch) ? channelColors[ch] : 'transparent',
+                        border: '1px solid ' + (ecgChannels.includes(ch) ? channelColors[ch] : '#cbd5e1'),
+                        opacity: (ecgChannels.length === 1 && ecgChannels.includes(ch)) ? 0.5 : 1,
+                        cursor: (ecgChannels.length === 1 && ecgChannels.includes(ch)) ? 'not-allowed' : 'pointer'
                       }}
-                      labelStyle={{ color: darkMode ? '#e2e8f0' : '#0f172a', fontWeight: 600, fontSize: '12px' }}
-                      itemStyle={{ fontSize: '11px' }}
-                    />
-                    <Line
-                      type="monotone"
-                      dataKey="value"
-                      stroke={darkMode ? '#CA8A73' : '#be123c'}
-                      strokeWidth={1.5}
-                      dot={false}
-                      isAnimationActive={false}
-                    />
+                    >
+                      {ch}
+                    </button>
+                  ))}
+                </div>
+                <ResponsiveContainer width="100%" height={228}>
+                  <LineChart data={ecgData}>
+                    <XAxis dataKey="time" />
+                    <YAxis />
+                    <CartesianGrid strokeDasharray="3 3" />
+                    <Tooltip />
+                    {ecgChannels.map(ch => (
+                      <Line key={ch} dataKey={ch} stroke={channelColors[ch]} dot={false} />
+                    ))}
                   </LineChart>
                 </ResponsiveContainer>
-              </div>
-            </div>
+              </div> </div>
           </div>
+
+
         </div>
       </main>
 
