@@ -163,7 +163,7 @@ export function useBleStream() {
       }
     }
 
-    const MAX_POINTS = 500;
+    const MAX_POINTS = 1000;
 
     setEegData(prev => {
       const combined = [...prev, ...newEegEntries];

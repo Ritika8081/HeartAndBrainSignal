@@ -4,11 +4,11 @@ import { useEffect, useRef } from 'react'
 import { WebglPlot, WebglLine, ColorRGBA } from 'webgl-plot'
 
 type Props = {
-  /** your stream: [{ ch0: 0.1, ch1: -0.2 }, …] */
+  /** your full history buffer, e.g. [{ ch0:0.1, ch1:-0.2 }, …] */
   data: Array<Record<string, number>>
-  /** e.g. ['ch0','ch1'] */
+  /** which channels to draw, e.g. ['ch0','ch1'] */
   channels: string[]
-  /** e.g. { ch0: '#C29963', ch1: '#548687' } */
+  /** color lookup, e.g. { ch0:'#C29963', ch1:'#548687' } */
   colors: Record<string, string>
 }
 
@@ -23,11 +23,12 @@ export default function WebglPlotCanvas({ data, channels, colors }: Props) {
   const canvasRef = useRef<HTMLCanvasElement>(null)
   const wglpRef = useRef<WebglPlot>()
   const linesRef = useRef<Record<string, WebglLine>>({})
+  const sweepRef = useRef(0)
 
-  // 1️⃣ Resize handler: measure CSS size → set drawing buffer & viewport
+  // ─── 1) Resize → sync drawingBuffer & viewport ─────────────────────────────
   useEffect(() => {
     const canvas = canvasRef.current!
-    const handleResize = () => {
+    const onResize = () => {
       const { width, height } = canvas.getBoundingClientRect()
       const dpr = window.devicePixelRatio || 1
       canvas.width = width * dpr
@@ -36,27 +37,44 @@ export default function WebglPlotCanvas({ data, channels, colors }: Props) {
         wglpRef.current.gl.viewport(0, 0, canvas.width, canvas.height)
       }
     }
-    window.addEventListener('resize', handleResize)
-    handleResize()  // initial
-    return () => {
-      window.removeEventListener('resize', handleResize)
-    }
+    window.addEventListener('resize', onResize)
+    onResize()
+    return () => void window.removeEventListener('resize', onResize)
   }, [])
 
-  // 2️⃣ On mount (or if channels/data‑length change): init WebglPlot & lines
+  // ─── 2) Initialize plot & lines whenever channel‑list or buffer‑length changes ─
   useEffect(() => {
+    const n = data.length/2
+    if (n === 0) return         // ← guard empty buffer
+
     const canvas = canvasRef.current!
     const wglp = new WebglPlot(canvas)
     wglpRef.current = wglp
+    linesRef.current = {}
 
-    const n = data.length
-    channels.forEach(ch => {
-      const color = hexToColorRGBA(colors[ch])
-      const line = new WebglLine(color, n)
-      line.lineSpaceX(-1, 2 / (n - 1))
+    // create a line per channel
+    channels.forEach((ch) => {
+      const line = new WebglLine(hexToColorRGBA(colors[ch]), n)
+      line.lineSpaceX(-1, 2 / (n - 1))  // map indices 0…n−1 → x=−1…+1
       linesRef.current[ch] = line
       wglp.addLine(line)
     })
+
+    // if you already have data, draw full static trace once
+    channels.forEach((ch) => {
+      const line = linesRef.current[ch]!
+      for (let i = 0; i < n; i++) {
+        line.setY(i, data[i][ch] ?? 0)
+      }
+    })
+    // auto‑scale Y so peak occupies ~90% height
+    const maxAbs = data.reduce((m, pt) =>
+      Math.max(m, ...channels.map(ch => Math.abs(pt[ch] ?? 0)))
+    , 0)
+    if (maxAbs > 0) wglp.gScaleY = 0.9 / maxAbs
+
+    wglp.update()
+    sweepRef.current = 0       // start sweep at left
 
     return () => {
       wglpRef.current = undefined
@@ -64,21 +82,32 @@ export default function WebglPlotCanvas({ data, channels, colors }: Props) {
     }
   }, [channels.join(','), data.length])
 
-  // 3️⃣ On every data update: copy into each line, then draw
+  // ─── 3) On every data update: write only the new sample at sweepPos ──────────
   useEffect(() => {
     const wglp = wglpRef.current
-    if (!wglp) return
     const n = data.length
-    channels.forEach(ch => {
+    if (!wglp || n === 0) return  // ← guard empty or uninitialized
+
+    const latest = data[n - 1]
+    const idx = sweepRef.current
+
+    // update one point per channel
+    channels.forEach((ch) => {
       const line = linesRef.current[ch]
-      for (let i = 0; i < n; i++) {
-        line.setY(i, data[i][ch] ?? 0)
-      }
+      if (line) line.setY(idx, latest[ch] ?? 0)
     })
+
+    // auto‑scale if needed
+    const maxAbs = data.reduce((m, pt) =>
+      Math.max(m, ...channels.map(ch => Math.abs(pt[ch] ?? 0)))
+    , 0)
+    if (maxAbs > 0) wglp.gScaleY = 0.9 / maxAbs
+
     wglp.update()
+    sweepRef.current = (idx + 1) % n
   }, [data])
 
-  // fill parent container
+  // ─── 4) Render a full‑width, full‑height canvas ─────────────────────────────
   return (
     <canvas
       ref={canvasRef}
