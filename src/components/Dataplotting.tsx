@@ -30,6 +30,7 @@ export default function SignalVisualizer() {
         start,
         stop,
         disconnect,
+        bandPower,      // ← new
     } = useBleStream();
 
 
@@ -52,13 +53,24 @@ export default function SignalVisualizer() {
         ch2: '#9A7197'
     };
 
-    // Radar data from last EEG sample
-    const radarData = (() => {
-        const last = eegData[eegData.length - 1];
-        return last
-            ? eegChannelList.map(ch => ({ subject: ch, value: last[ch] }))
-            : [];
-    })();
+      // define the order & labels of bands
+  const bands = [
+    { subject: 'Delta', key: 'delta'  },
+    { subject: 'Theta', key: 'theta'  },
+    { subject: 'Alpha', key: 'alpha'  },
+    { subject: 'Beta',  key: 'beta'   },
+    { subject: 'Gamma', key: 'gamma'  },
+  ] as const;
+
+  // build two data arrays
+  const radarDataCh0 = bands.map(b => ({
+    subject: b.subject,
+    value: bandPower.ch0[b.key],
+  }));
+  const radarDataCh1 = bands.map(b => ({
+    subject: b.subject,
+    value: bandPower.ch1[b.key],
+  }));
 
 
 
@@ -190,69 +202,110 @@ export default function SignalVisualizer() {
                             <p className={`text-xs ${textSecondary}`}>Electroencephalogram (EEG)</p>
                         </div>
 
-                        {/* EEG Row 2: Spider Plot */}
-                        <div className={`rounded-xl shadow-md p-3 border ${cardBg} transition-colors duration-300 h-52`}>
-                            <h3 className={`text-base font-semibold mb-1 ${textPrimary}`}>Brainwave Distribution</h3>
-                            <div className="h-40">
-                                <ResponsiveContainer width="100%" height="100%">
-                                    <RadarChart cx="50%" cy="50%" outerRadius="70%" data={radarData}>
+                       {/* EEG Row 2: Spider Plot */}
+<div className={`flex flex-col rounded-xl shadow-md p-1 px-3 border ${cardBg} transition-colors duration-300 h-[40%]`}>
+  {/* Header */}
+  <h3 className={`text-base font-semibold ${textPrimary}`}>Brainwave Distribution</h3>
 
-                                        <PolarGrid strokeDasharray="3 3" stroke={gridLines} />
-                                        <PolarAngleAxis
-                                            dataKey="subject"
-                                            tick={{ fill: axisColor, fontSize: 10 }}
-                                        />
-                                        <PolarRadiusAxis angle={30} domain={[0, 50]} tick={{ fill: axisColor, fontSize: 10 }} />
-                                        <Radar
-                                            name="EEG"
-                                            dataKey="value"
-                                            stroke={darkMode ? '#C29963' : '#A27C48'}
-                                            fill={darkMode ? '#C29963' : '#A27C48'}
-                                            fillOpacity={0.6}
-                                        />
-                                    </RadarChart>
-                                </ResponsiveContainer>
-                            </div>
-                        </div>
+  {/* Charts container */}
+  <div className="flex flex-row flex-1">
+    {/* Left chart: Channel 0 */}
+    <div className="flex-1 pr-2 flex flex-col">
+     
+      <div className="flex-1 h-full">
+        <ResponsiveContainer width="100%" height="100%">
+          <RadarChart cx="50%" cy="50%" outerRadius="70%" data={radarDataCh0}>
+            <PolarGrid strokeDasharray="3 3" stroke={gridLines} />
+            <PolarAngleAxis
+              dataKey="subject"
+              tick={{ fill: axisColor, fontSize: 10 }}
+            />
+            <PolarRadiusAxis
+              angle={30}
+              domain={[0, 'auto']}
+              tick={{ fill: axisColor, fontSize: 10 }}
+            />
+            <Radar
+              name="Ch0"
+              dataKey="value"
+              stroke={darkMode ? '#C29963' : '#A27C48'}
+              fill={darkMode ? '#C29963' : '#A27C48'}
+              fillOpacity={0.6}
+            />
+          </RadarChart>
+        </ResponsiveContainer>
+      </div>
+    </div>
+
+    {/* Right chart: Channel 1 */}
+    <div className="flex-1 pl-2 flex flex-col">
+     
+      <div className="flex-1 h-full">
+        <ResponsiveContainer width="100%" height="100%">
+          <RadarChart cx="50%" cy="50%" outerRadius="70%" data={radarDataCh1}>
+            <PolarGrid strokeDasharray="3 3" stroke={gridLines} />
+            <PolarAngleAxis
+              dataKey="subject"
+              tick={{ fill: axisColor, fontSize: 10 }}
+            />
+            <PolarRadiusAxis
+              angle={30}
+              domain={[0, 'auto']}
+              tick={{ fill: axisColor, fontSize: 10 }}
+            />
+            <Radar
+              name="Ch1"
+              dataKey="value"
+              stroke={darkMode ? '#548687' : '#2F6F6B'}
+              fill={darkMode ? '#548687' : '#2F6F6B'}
+              fillOpacity={0.6}
+            />
+          </RadarChart>
+        </ResponsiveContainer>
+      </div>
+    </div>
+  </div>
+</div>
+
 
                         {/* EEG Row 3: EEG Chart */}
                         <div className="md:col-span-2 flex flex-col gap-3">
                             {/* Chart container */}
                             <div className={`flex-1 rounded-xl overflow-hidden p-2 transition-colors duration-300 ${darkMode ? 'bg-zinc-800/90' : 'bg-white'}`}>
-              <div className="flex gap-2 mb-2">
-                {eegChannelList.map(ch => (
-                  <button
-                    key={ch}
-                    onClick={() => toggleEegChannel(ch)}
-                    className={`px-2 rounded transition-all duration-200 ${eegChannels.includes(ch) ? 'text-white' : 'text-gray-600'}`}
-                    style={{
-                      backgroundColor: eegChannels.includes(ch) ? channelColors[ch] : 'transparent',
-                      border: '1px solid ' + (eegChannels.includes(ch) ? channelColors[ch] : '#cbd5e1'),
-                    }}
-                  >
-                    {ch}
-                  </button>
-                ))}
-              </div>
-              <ResponsiveContainer width="100%" height={228}>
-                <LineChart data={eegData} margin={{ top: 5, right: 5, bottom: 5, left: -10 }}>
-                  <CartesianGrid strokeDasharray="3 3" />
-                  <XAxis dataKey="time" tick={{ fill: axisColor }} />
-                  <YAxis />
-                  <Tooltip />
-                  {eegChannels.map(ch => (
-                    <Line
-                      key={ch}
-                      type="monotone"
-                      dataKey={ch}
-                      stroke={channelColors[ch]}
-                      dot={false}
-                      isAnimationActive={false}
-                    />
-                  ))}
-                </LineChart>
-              </ResponsiveContainer>
-            </div></div>
+                                <div className="flex gap-2 mb-2">
+                                    {eegChannelList.map(ch => (
+                                        <button
+                                            key={ch}
+                                            onClick={() => toggleEegChannel(ch)}
+                                            className={`px-2 rounded transition-all duration-200 ${eegChannels.includes(ch) ? 'text-white' : 'text-gray-600'}`}
+                                            style={{
+                                                backgroundColor: eegChannels.includes(ch) ? channelColors[ch] : 'transparent',
+                                                border: '1px solid ' + (eegChannels.includes(ch) ? channelColors[ch] : '#cbd5e1'),
+                                            }}
+                                        >
+                                            {ch}
+                                        </button>
+                                    ))}
+                                </div>
+                                <ResponsiveContainer width="100%" height={228}>
+                                    <LineChart data={eegData} margin={{ top: 5, right: 5, bottom: 5, left: -10 }}>
+                                        <CartesianGrid strokeDasharray="3 3" />
+                                        <XAxis dataKey="time" tick={{ fill: axisColor }} />
+                                        <YAxis />
+                                        <Tooltip />
+                                        {eegChannels.map(ch => (
+                                            <Line
+                                                key={ch}
+                                                type="monotone"
+                                                dataKey={ch}
+                                                stroke={channelColors[ch]}
+                                                dot={false}
+                                                isAnimationActive={false}
+                                            />
+                                        ))}
+                                    </LineChart>
+                                </ResponsiveContainer>
+                            </div></div>
 
                     </div>
 
@@ -268,18 +321,18 @@ export default function SignalVisualizer() {
                             <p className={`text-xs ${textSecondary}`}>Electrocardiogram (ECG)</p>
                         </div>
 
-                         {/* ECG Row 2: BPM Info */}
-            <div className={`rounded-xl shadow-md p-3 border ${cardBg} transition-colors duration-300 h-52`}>
-              <h3 className={`text-base font-semibold mb-1 ${textPrimary}`}>Heart Rate Analysis</h3>
-              <div className="flex items-center justify-center h-40">
-                <div className={`text-center p-6 rounded-full ${heartIconBoxBg} transition-colors duration-300`}>
-                  <div className={`text-4xl font-bold ${secondaryAccent}`}>
-                    {bpm !== null ? bpm : '...'}
-                  </div>
-                  <div className="text-sm font-medium mt-1">BPM</div>
-                </div>
-              </div>
-            </div>
+                        {/* ECG Row 2: BPM Info */}
+                        <div className={`rounded-xl shadow-md p-1 px-3 border ${cardBg} transition-colors duration-300 h-[40%]`}>
+                            <h3 className={`text-base font-semibold mb-1 ${textPrimary}`}>Heart Rate Analysis</h3>
+                            <div className="flex items-center justify-center h-40">
+                                <div className={`text-center p-6 rounded-full ${heartIconBoxBg} transition-colors duration-300`}>
+                                    <div className={`text-4xl font-bold ${secondaryAccent}`}>
+                                        {bpm !== null ? bpm : '...'}
+                                    </div>
+                                    <div className="text-sm font-medium mt-1">BPM</div>
+                                </div>
+                            </div>
+                        </div>
 
 
                         {/* ECG Section */}
