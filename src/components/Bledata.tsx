@@ -163,8 +163,22 @@ export function useBleStream() {
       }
     }
 
-    setEegData(prev => [...prev.slice(-99), ...newEegEntries]);
-    setEcgData(prev => [...prev.slice(-99), ...newEcgEntries]);
+    const MAX_POINTS = 500;
+
+    setEegData(prev => {
+      const combined = [...prev, ...newEegEntries];
+      // if you want exactly MAX_POINTS, drop the oldest:
+      return combined.length > MAX_POINTS
+        ? combined.slice(combined.length - MAX_POINTS)
+        : combined;
+    });
+
+    setEcgData(prev => {
+      const combined = [...prev, ...newEcgEntries];
+      return combined.length > MAX_POINTS
+        ? combined.slice(combined.length - MAX_POINTS)
+        : combined;
+    }); 
   };
 
 
