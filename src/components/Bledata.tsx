@@ -32,8 +32,7 @@ function applyFilter(input: number, state: { z1: number; z2: number; x1: number 
 
 
 export function useBleStream() {
-  const [eegData, setEegData] = useState<EEGDataEntry[]>([]);
-  const [ecgData, setEcgData] = useState<ECGDataEntry[]>([]);
+
   const [connected, setConnected] = useState(false);
   const [streaming, setStreaming] = useState(false);
 
@@ -45,6 +44,20 @@ export function useBleStream() {
   const controlRef = useRef<BluetoothRemoteGATTCharacteristic | null>(null);
   const dataRef = useRef<BluetoothRemoteGATTCharacteristic | null>(null);
   const timeIndex = useRef(0);
+
+   // …
+   const WINDOW_SIZE = 100;
+
+   // 1) Pre-alloc fixed buffers
+   const eegBuffer = useRef<EEGDataEntry[]>(
+     Array.from({length: WINDOW_SIZE}, (_, i) => ({time: i, ch0: 0, ch1: 0}))
+   );
+   const ecgBuffer = useRef<ECGDataEntry[]>(
+     Array.from({length: WINDOW_SIZE}, (_, i) => ({time: i, ch2: 0}))
+   );
+   const writeIdx = useRef(0);
+   const [eegData, setEegData] = useState(eegBuffer.current);
+   const [ecgData, setEcgData] = useState(ecgBuffer.current);
 
   // --- EEG band-pass filter states ---
   const filterState0 = useRef({ z1: 0, z2: 0, x1: 0 });
@@ -91,7 +104,7 @@ export function useBleStream() {
   });
 
 
-  const handleNotification = (evt: Event) => {
+  const onBleDataReceived = (evt: Event) => {
     const char = evt.target as BluetoothRemoteGATTCharacteristic;
     const raw = new Uint8Array(char.value!.buffer);
     if (raw.length % SINGLE_SAMPLE_LEN !== 0) return;
@@ -99,73 +112,83 @@ export function useBleStream() {
     const newEegEntries: EEGDataEntry[] = [];
     const newEcgEntries: ECGDataEntry[] = [];
 
+    // parse each sample in this notification
     for (let offset = 0; offset < raw.length; offset += SINGLE_SAMPLE_LEN) {
-      // --- raw channel samples ---
       const raw0 = raw[offset + 1] | (raw[offset + 2] << 8);
       const raw1 = raw[offset + 3] | (raw[offset + 4] << 8);
       const raw2 = raw[offset + 5] | (raw[offset + 6] << 8);
 
-      // --- notch filter ---
-      const notch0Out = notch0.current.process(raw0);
-      const notch1Out = notch1.current.process(raw1);
-      const notch2Out = notch2.current.process(raw2);
+      // notch & normalize
+      const n0 = normalize(notch0.current.process(raw0));
+      const n1 = normalize(notch1.current.process(raw1));
+      const n2 = normalize(notch2.current.process(raw2));
 
-      // --- normalize & band-pass EEG channels ---
-      const norm0 = normalize(notch0Out);
-      const norm1 = normalize(notch1Out);
-      const eeg0 = applyFilter(norm0, filterState0.current);
-      const eeg1 = applyFilter(norm1, filterState1.current);
-      const ecg = normalize(notch2Out);
+      // EEG band‐pass
+      const eeg0 = applyFilter(n0, filterState0.current);
+      const eeg1 = applyFilter(n1, filterState1.current);
+      const ecg  = n2;
 
-      // --- timestamp ---
-      const time = timeIndex.current++;
-      newEegEntries.push({ time, ch0: eeg0, ch1: eeg1 });
-      newEcgEntries.push({ time, ch2: ecg });
+      // timestamp
+      const t = timeIndex.current++;
 
-      // --- FFT buffer accumulation ---
+      newEegEntries.push({ time: t, ch0: eeg0, ch1: eeg1 });
+      newEcgEntries.push({ time: t, ch2: ecg });
+
+      // FFT accumulation
       buf0.current.push(eeg0);
       buf1.current.push(eeg1);
       if (buf0.current.length > FFT_SIZE) buf0.current.shift();
       if (buf1.current.length > FFT_SIZE) buf1.current.shift();
 
-      // --- compute band power every 5 samples ---
+      // update band‐power every 5 samples
       if ((sampleCounter.current = (sampleCounter.current + 1) % 5) === 0) {
-        const mags0 = fft0.current.computeMagnitudes(new Float32Array(buf0.current));
-        const mags1 = fft1.current.computeMagnitudes(new Float32Array(buf1.current));
+        const m0 = fft0.current.computeMagnitudes(new Float32Array(buf0.current));
+        const m1 = fft1.current.computeMagnitudes(new Float32Array(buf1.current));
         setBandPower({
           ch0: {
-            delta: calculateBandPower(mags0, DELTA_RANGE, SAMPLE_RATE, FFT_SIZE),
-            theta: calculateBandPower(mags0, THETA_RANGE, SAMPLE_RATE, FFT_SIZE),
-            alpha: calculateBandPower(mags0, ALPHA_RANGE, SAMPLE_RATE, FFT_SIZE),
-            beta: calculateBandPower(mags0, BETA_RANGE, SAMPLE_RATE, FFT_SIZE),
-            gamma: calculateBandPower(mags0, GAMMA_RANGE, SAMPLE_RATE, FFT_SIZE),
+            delta: calculateBandPower(m0, DELTA_RANGE, SAMPLE_RATE, FFT_SIZE),
+            theta: calculateBandPower(m0, THETA_RANGE, SAMPLE_RATE, FFT_SIZE),
+            alpha: calculateBandPower(m0, ALPHA_RANGE, SAMPLE_RATE, FFT_SIZE),
+            beta:  calculateBandPower(m0, BETA_RANGE,  SAMPLE_RATE, FFT_SIZE),
+            gamma: calculateBandPower(m0, GAMMA_RANGE, SAMPLE_RATE, FFT_SIZE),
           },
           ch1: {
-            delta: calculateBandPower(mags1, DELTA_RANGE, SAMPLE_RATE, FFT_SIZE),
-            theta: calculateBandPower(mags1, THETA_RANGE, SAMPLE_RATE, FFT_SIZE),
-            alpha: calculateBandPower(mags1, ALPHA_RANGE, SAMPLE_RATE, FFT_SIZE),
-            beta: calculateBandPower(mags1, BETA_RANGE, SAMPLE_RATE, FFT_SIZE),
-            gamma: calculateBandPower(mags1, GAMMA_RANGE, SAMPLE_RATE, FFT_SIZE),
+            delta: calculateBandPower(m1, DELTA_RANGE, SAMPLE_RATE, FFT_SIZE),
+            theta: calculateBandPower(m1, THETA_RANGE, SAMPLE_RATE, FFT_SIZE),
+            alpha: calculateBandPower(m1, ALPHA_RANGE, SAMPLE_RATE, FFT_SIZE),
+            beta:  calculateBandPower(m1, BETA_RANGE,  SAMPLE_RATE, FFT_SIZE),
+            gamma: calculateBandPower(m1, GAMMA_RANGE, SAMPLE_RATE, FFT_SIZE),
           },
         });
       }
 
-      // --- BPM detection logic (unchanged) ---
+      // BPM detection
       if (lastPeakTime.current !== null) {
-        const interval = time - lastPeakTime.current;
+        const interval = t - lastPeakTime.current;
         if (interval > 30) {
           rrIntervals.current.push(interval);
           if (rrIntervals.current.length > 5) rrIntervals.current.shift();
-          const avgRR = rrIntervals.current.reduce((a, b) => a + b, 0) / rrIntervals.current.length;
+          const avgRR = rrIntervals.current.reduce((a,b) => a + b, 0) / rrIntervals.current.length;
           setBpm(Math.round((60 * SAMPLE_RATE) / avgRR));
         }
-        lastPeakTime.current = time;
       }
+      lastPeakTime.current = t;
     }
 
-    setEegData(prev => [...prev.slice(-99), ...newEegEntries]);
-    setEcgData(prev => [...prev.slice(-99), ...newEcgEntries]);
+    // OVERWRITE circular buffers
+    newEegEntries.forEach(entry => {
+      eegBuffer.current[writeIdx.current] = entry;
+      writeIdx.current = (writeIdx.current + 1) % WINDOW_SIZE;
+    });
+    newEcgEntries.forEach(entry => {
+      ecgBuffer.current[writeIdx.current] = entry;
+    });
+
+    // push updated arrays into state to trigger re-render
+    setEegData([...eegBuffer.current]);
+    setEcgData([...ecgBuffer.current]);
   };
+
 
 
 
@@ -186,14 +209,14 @@ export function useBleStream() {
     if (!controlRef.current || !dataRef.current) return;
     await controlRef.current.writeValue(new TextEncoder().encode('START'));
     await dataRef.current.startNotifications();
-    dataRef.current.addEventListener('characteristicvaluechanged', handleNotification);
+    dataRef.current.addEventListener('characteristicvaluechanged', onBleDataReceived);
     setStreaming(true);
   };
 
   const stop = async () => {
     if (!dataRef.current) return;
     await dataRef.current.stopNotifications();
-    dataRef.current.removeEventListener('characteristicvaluechanged', handleNotification);
+    dataRef.current.removeEventListener('characteristicvaluechanged', onBleDataReceived);
     setStreaming(false);
   };
 
