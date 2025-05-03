@@ -190,8 +190,6 @@ export function useBleStream() {
   };
 
 
-
-
   const connect = async () => {
     const device = await navigator.bluetooth.requestDevice({
       filters: [{ namePrefix: 'NPG' }],

@@ -1,11 +1,9 @@
 'use client'
-import { useState, useRef } from 'react';
+import { useState } from 'react';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, RadarChart, PolarGrid, PolarAngleAxis, PolarRadiusAxis, Radar } from 'recharts';
 import { Activity, Brain, Settings, Heart, Box } from 'lucide-react';
 import { useBleStream } from '../components/Bledata';
-// at top of the file
-import { WebglEEGPlot } from "@/components/WebglEEGPlot";
-import { WebglECGPlot } from "@/components/WebglECGPlot";
+
 
 // Local channel key types matching BLE data shape
 type EEGChannel = 'ch0' | 'ch1';
@@ -36,13 +34,6 @@ export default function SignalVisualizer() {
     } = useBleStream();
 
 
-    const WINDOW_SIZE = 200;
-    const bufferRef = useRef<{ time: number; value: number }[]>(
-        Array(WINDOW_SIZE).fill({ time: 0, value: 0 })
-    );
-    const writeIdx = useRef(0);
-    const [data, setData] = useState(bufferRef.current);
-    const [zoom, setZoom] = useState(1);
 
     const toggleEegChannel = (ch: EEGChannel) => {
         setEegChannels(prev =>
@@ -233,7 +224,7 @@ export default function SignalVisualizer() {
                                                 />
                                                 <PolarRadiusAxis
                                                     angle={30}
-                                                    domain={[0, 'auto']}
+                                                    domain={[0, 100]}
                                                     tick={{ fill: axisColor, fontSize: 10 }}
                                                 />
                                                 <Radar
@@ -261,7 +252,7 @@ export default function SignalVisualizer() {
                                                 />
                                                 <PolarRadiusAxis
                                                     angle={30}
-                                                    domain={[0, 'auto']}
+                                                    domain={[0, 100]}
                                                     tick={{ fill: axisColor, fontSize: 10 }}
                                                 />
                                                 <Radar
@@ -298,7 +289,24 @@ export default function SignalVisualizer() {
                                         </button>
                                     ))}
                                 </div>
-                                <WebglEEGPlot eegData={eegData} />
+                                <ResponsiveContainer width="100%" height={228}>
+                                    <LineChart data={eegData} margin={{ top: 5, right: 5, bottom: 5, left: -10 }}>
+                                        <CartesianGrid strokeDasharray="3 3" />
+                                        <XAxis dataKey="time" tick={{ fill: axisColor }} />
+                                        <YAxis />
+                                        <Tooltip />
+                                        {eegChannels.map(ch => (
+                                            <Line
+                                                key={ch}
+                                                type="monotone"
+                                                dataKey={ch}
+                                                stroke={channelColors[ch]}
+                                                dot={false}
+                                                isAnimationActive={false}
+                                            />
+                                        ))}
+                                    </LineChart>
+                                </ResponsiveContainer>
                             </div></div>
 
                     </div>
@@ -338,7 +346,6 @@ export default function SignalVisualizer() {
                         </div>
 
 
-
                         {/* ECG Section */}
                         <div className="md:col-span-2 flex flex-col gap-3">
 
@@ -359,7 +366,17 @@ export default function SignalVisualizer() {
                                         </button>
                                     ))}
                                 </div>
-                                <WebglECGPlot ecgData={ecgData} />
+                                <ResponsiveContainer width="100%" height={228}>
+                                    <LineChart data={ecgData}>
+                                        <XAxis dataKey="time" tick={{ fill: axisColor }} />
+                                        <YAxis />
+                                        <CartesianGrid strokeDasharray="3 3" />
+                                        <Tooltip />
+                                        {ecgChannels.map(ch => (
+                                            <Line key={ch} dataKey={ch} stroke={channelColors[ch]} dot={false} />
+                                        ))}
+                                    </LineChart>
+                                </ResponsiveContainer>
                             </div>
                         </div>
                     </div>
