@@ -1,13 +1,15 @@
+'use client'
 // lib/useBleStream.ts
 import { useState, useRef, useEffect } from 'react';
+
 import { FFT, calculateBandPower } from '@/lib/fft';
 // --- Import notch and EXG filters for signal cleaning ---
 import { NotchFilter500Hz } from '@/lib/notchfilter';  // 50 Hz notch filter implementation
-import { EXGFilter } from '@/lib/exgfilter';            // Band-pass filter for EEG/ECG
+import { EXGFilter } from '@/lib/eegfilter';            // Band-pass filter for EEG/ECG
 
 // --- Data entry interfaces for EEG and ECG samples ---
 export interface EEGDataEntry { ch0: number }            // Single-channel EEG sample after filtering
-export interface ECGDataEntry { time: number; ch2: number; }  // Timestamped ECG sample
+export interface ECGDataEntry { ch2: number; }  // Timestamped ECG sample
 
 // --- BLE service and characteristic UUIDs ---
 const SERVICE_UUID = '4fafc201-1fb5-459e-8fcc-c5c9c331914b';  // Custom BLE service for NPG device
@@ -24,14 +26,62 @@ const THETA_RANGE: [number, number] = [4, 8];
 const ALPHA_RANGE: [number, number] = [8, 12];
 const BETA_RANGE: [number, number] = [12, 30];
 const GAMMA_RANGE: [number, number] = [30, 45];
-
+const ZZZ: number[] = []
 // --- React hook: useBleStream ---
 export function useBleStream() {
+
+  useEffect(() => {
+    const SAMPLE_RATE = 500;         // Hz
+    const CHUNK_SECONDS = 10;
+    const CHUNK_SIZE = SAMPLE_RATE * CHUNK_SECONDS; // 5000
+
+    const interval = setInterval(() => {
+      const ctrs = counterLog.current;
+      const ecgs = ecgLog.current;
+      const chunks = Math.floor(ctrs.length / CHUNK_SIZE);
+      for (let i = 0; i < chunks; i++) {
+        const start = i * CHUNK_SIZE;
+        const end = start + CHUNK_SIZE;
+        const sliceCtr = ctrs.slice(start, end);
+        const sliceEcg = ecgs.slice(start, end);
+        // build CSV text
+        const lines = ['counter,ecg'];
+        for (let j = 0; j < CHUNK_SIZE; j++) {
+          lines.push(`${sliceCtr[j]},${sliceEcg[j]}`);
+          ZZZ.push(sliceCtr[j]);
+        }
+
+        const csv = lines.join('\n');
+
+        // trigger download
+        const blob = new Blob([csv], { type: 'text/csv' });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `ecg_${i + 1}.csv`;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        URL.revokeObjectURL(url);
+      }
+      console.log(ZZZ, "ZZZ");
+      // remove the chunks we've just downloaded:
+      if (chunks > 0) {
+        counterLog.current.splice(0, chunks * CHUNK_SIZE);
+        ecgLog.current.splice(0, chunks * CHUNK_SIZE);
+      }
+    }, CHUNK_SECONDS * 1000);
+
+    return () => clearInterval(interval);
+  }, []);
   // State for raw data arrays (capped at MAX_POINTS for performance)
   const [eegData, setEegData] = useState<number[]>([]);          // Filtered EEG values
   const [ecgData, setEcgData] = useState<ECGDataEntry[]>([]);     // ECG entries with timestamp
   const [connected, setConnected] = useState(false);             // BLE connection status
   const [streaming, setStreaming] = useState(false);             // Notification streaming status
+  const [counters, setCounters] = useState<number[]>([]);
+  const counterLog = useRef<number[]>([]);
+  const ecgLog = useRef<number[]>([]);
 
   // Refs for heart-rate calculation (RR interval detection)
   const lastPeakTime = useRef<number | null>(null);              // Timestamp of last detected R-peak
@@ -70,16 +120,22 @@ export function useBleStream() {
   const handleNotification = (evt: Event) => {
     const char = evt.target as BluetoothRemoteGATTCharacteristic;
     const raw = new Uint8Array(char.value!.buffer);
-    console.log('Received data:', raw);
     // Ensure full samples in packet
     if (raw.length % SINGLE_SAMPLE_LEN !== 0) return;
 
     // Temporary arrays for new batch of data
+    const newCounters: number[] = [];
     const newEegEntries: number[] = [];
     const newEcgEntries: ECGDataEntry[] = [];
 
+
     // Loop over each sample in the notification packet
     for (let offset = 0; offset < raw.length; offset += SINGLE_SAMPLE_LEN) {
+
+      const counter = raw[offset];
+      newCounters.push(counter);
+      // console.log("Counter:", counter);
+
       // Extract 16-bit values for 3 channels from bytes
       const raw0 = raw[offset + 1] | (raw[offset + 2] << 8);
       const raw1 = raw[offset + 3] | (raw[offset + 4] << 8);
@@ -99,13 +155,20 @@ export function useBleStream() {
       // Assign timestamp and store new entries
       const time = timeIndex.current++;
       newEegEntries.push(eeg0);
-      newEcgEntries.push({ time, ch2: ecg });
+      newEcgEntries.push({ ch2: ecg });
+
+
+      // in handleNotification, after you extract `rawCounter` and `ecg`:
+      counterLog.current.push(counter);
+      ecgLog.current.push(ecg);
 
       // 3) Append to FFT buffers and maintain window size
       buf0.current.push(eeg0);
       buf1.current.push(eeg1);
       if (buf0.current.length > FFT_SIZE) buf0.current.shift();
       if (buf1.current.length > FFT_SIZE) buf1.current.shift();
+
+
 
       // 4) Every 5 samples, compute band power for each EEG channel
       if ((sampleCounter.current = (sampleCounter.current + 1) % 5) === 0) {
@@ -144,8 +207,17 @@ export function useBleStream() {
       lastPeakTime.current = time;
     }
 
+
+
     // Limit history arrays to MAX_POINTS to avoid memory bloat
-    const MAX_POINTS = 200;
+
+    const MAX_POINTS = 500;
+    setCounters(prev => {
+      const combined = [...prev, ...newCounters];
+      return combined.length > MAX_POINTS
+        ? combined.slice(combined.length - MAX_POINTS)
+        : combined;
+    });
     setEegData(prev => {
       const combined = [...prev, ...newEegEntries];
       return combined.length > MAX_POINTS
@@ -206,6 +278,7 @@ export function useBleStream() {
   return {
     eegData,
     ecgData,
+    counters,
     bpm,
     connected,
     streaming,

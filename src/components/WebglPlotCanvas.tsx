@@ -10,6 +10,7 @@ type Props = {
   channels: string[]
   /** color lookup, e.g. { ch0:'#C29963', ch1:'#548687' } */
   colors: Record<string, string>
+  counter: number[];
 }
 
 function hexToColorRGBA(hex: string): ColorRGBA {
@@ -19,14 +20,14 @@ function hexToColorRGBA(hex: string): ColorRGBA {
   return new ColorRGBA(r, g, b, 1)
 }
 
-export default function WebglPlotCanvas({ data, channels, colors }: Props) {
+export default function WebglPlotCanvas({ data, channels, colors, counter }: Props) {
   const canvasRef = useRef<HTMLCanvasElement>(null)
   const wglpRef = useRef<WebglPlot | null>(null)
   const linesRef = useRef<Record<string, WebglLine>>({})
   const sweepRef = useRef(0)
 
-   // 1) ResizeObserver effect to match container size
-   useEffect(() => {
+  // 1) ResizeObserver effect to match container size
+  useEffect(() => {
     const canvas = canvasRef.current!;
     const onResize = () => {
       const { width, height } = canvas.getBoundingClientRect();
@@ -45,7 +46,17 @@ export default function WebglPlotCanvas({ data, channels, colors }: Props) {
     return () => ro.disconnect();
   }, []);
 
-  
+  if (counter.length > 0) {
+    console.log("Counter data:", counter);
+  }
+
+  useEffect(() => {
+    if (data.length > 0) {
+      const latest = data[data.length - 1]
+      console.log("Data received:", latest)
+      console.log("ECG Data (ch2):", latest.ch2)
+    }
+  }, [data])
 
   // Initialize plot & lines on channel list or data length change
   useEffect(() => {
@@ -75,45 +86,45 @@ export default function WebglPlotCanvas({ data, channels, colors }: Props) {
   }, [channels.join(','), data.length])
 
   // Update latest point on new data
- // ── Auto-gain normalization & plotting ──
-useEffect(() => {
-  const wglp = wglpRef.current
-  const n = data.length
-  if (!wglp || n === 0) return
+  // ── Auto-gain normalization & plotting ──
+  useEffect(() => {
+    const wglp = wglpRef.current
+    const n = data.length
+    if (!wglp || n === 0) return
 
-  // 1️⃣ Build per-channel windows:
-  const windows: Record<string, number[]> = {}
-  channels.forEach(ch => {
-    windows[ch] = data.map(pt => pt[ch] ?? 0)
-  })
+    // 1️ Build per-channel windows:
+    const windows: Record<string, number[]> = {}
+    channels.forEach(ch => {
+      windows[ch] = data.map(pt => pt[ch] ?? 0)
+    })
 
-  // 2️⃣ Compute each channel’s max absolute value:
-  const maxAbs: Record<string, number> = {}
-  channels.forEach(ch => {
-    const arr = windows[ch]
-    const m = Math.max(...arr.map(v => Math.abs(v)), 1e-6)
-    maxAbs[ch] = m
-  })
+    // 2️ Compute each channel’s max absolute value:
+    const maxAbs: Record<string, number> = {}
+    channels.forEach(ch => {
+      const arr = windows[ch]
+      const m = Math.max(...arr.map(v => Math.abs(v)), 1e-6)
+      maxAbs[ch] = m
+    })
 
-  // 3️⃣ Set each line’s gain so ±maxAbs→±1 in clip-space
-  channels.forEach((ch, i) => {
-    const line = linesRef.current[ch]
-    if (line) {
-      // You can either set gScaleY per-plot (if you kept one WebglPlot per channel),
-      // or tweak per-line via dividing your raw sample below:
-      // Here we’ll just divide the raw sample when calling setY:
-      const idx = sweepRef.current
-      const raw = data[idx][ch] ?? 0
-      const norm = raw / maxAbs[ch]   // now guaranteed in [-1..1]
-      line.setY(idx, norm)
-    }
-  })
+    // 3️ Set each line’s gain so ±maxAbs→±1 in clip-space
+    channels.forEach((ch, i) => {
+      const line = linesRef.current[ch]
+      if (line) {
+        // You can either set gScaleY per-plot (if you kept one WebglPlot per channel),
+        // or tweak per-line via dividing your raw sample below:
+        // Here we’ll just divide the raw sample when calling setY:
+        const idx = sweepRef.current
+        const raw = data[idx][ch] ?? 0
+        const norm = raw / maxAbs[ch]   // now guaranteed in [-1..1]
+        line.setY(idx, norm)
+      }
+    })
 
-  wglp.update()
-  sweepRef.current = (sweepRef.current + 1) % n
-}, [data])
+    wglp.update()
+    sweepRef.current = (sweepRef.current + 1) % n
+  }, [data])
 
-  
+
 
   return (
     <canvas
