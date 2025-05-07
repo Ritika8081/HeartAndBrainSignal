@@ -65,21 +65,6 @@ export default function WebglPlotCanvas({ data, channels, colors }: Props) {
       wglp.addLine(line)
     })
 
-    // draw initial data
-    channels.forEach((ch) => {
-      const line = linesRef.current[ch]!
-      for (let i = 0; i < n; i++) {
-        line.setY(i, data[i][ch] ?? 0)
-      }
-    })
-    
-
-    // auto-scale Y
-    const maxAbs = data.reduce((m, pt) =>
-      Math.max(m, ...channels.map(ch => Math.abs(pt[ch] ?? 0)))
-    , 0)
-    if (maxAbs > 0) wglp.gScaleY = 0.9 / maxAbs
-
     wglp.update()
     sweepRef.current = 0
 
@@ -90,27 +75,44 @@ export default function WebglPlotCanvas({ data, channels, colors }: Props) {
   }, [channels.join(','), data.length])
 
   // Update latest point on new data
-  useEffect(() => {
-    const wglp = wglpRef.current
-    const n = data.length
-    if (!wglp || n === 0) return
+ // ── Auto-gain normalization & plotting ──
+useEffect(() => {
+  const wglp = wglpRef.current
+  const n = data.length
+  if (!wglp || n === 0) return
 
-    const latest = data[n - 1]
-    const idx = sweepRef.current
+  // 1️⃣ Build per-channel windows:
+  const windows: Record<string, number[]> = {}
+  channels.forEach(ch => {
+    windows[ch] = data.map(pt => pt[ch] ?? 0)
+  })
 
-    channels.forEach((ch) => {
-      const line = linesRef.current[ch]
-      if (line) line.setY(idx, latest[ch] ?? 0)
-    })
+  // 2️⃣ Compute each channel’s max absolute value:
+  const maxAbs: Record<string, number> = {}
+  channels.forEach(ch => {
+    const arr = windows[ch]
+    const m = Math.max(...arr.map(v => Math.abs(v)), 1e-6)
+    maxAbs[ch] = m
+  })
 
-    const maxAbs = data.reduce((m, pt) =>
-      Math.max(m, ...channels.map(ch => Math.abs(pt[ch] ?? 0)))
-    , 0)
-    if (maxAbs > 0) wglp.gScaleY = 0.9 / maxAbs
+  // 3️⃣ Set each line’s gain so ±maxAbs→±1 in clip-space
+  channels.forEach((ch, i) => {
+    const line = linesRef.current[ch]
+    if (line) {
+      // You can either set gScaleY per-plot (if you kept one WebglPlot per channel),
+      // or tweak per-line via dividing your raw sample below:
+      // Here we’ll just divide the raw sample when calling setY:
+      const idx = sweepRef.current
+      const raw = data[idx][ch] ?? 0
+      const norm = raw / maxAbs[ch]   // now guaranteed in [-1..1]
+      line.setY(idx, norm)
+    }
+  })
 
-    wglp.update()
-    sweepRef.current = (idx + 1) % n
-  }, [data])
+  wglp.update()
+  sweepRef.current = (sweepRef.current + 1) % n
+}, [data])
+
   
 
   return (

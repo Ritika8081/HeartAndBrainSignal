@@ -1,134 +1,113 @@
 // lib/useBleStream.ts
 import { useState, useRef, useEffect } from 'react';
 import { FFT, calculateBandPower } from '@/lib/fft';
+// --- Import notch and EXG filters for signal cleaning ---
+import { NotchFilter500Hz } from '@/lib/notchfilter';  // 50 Hz notch filter implementation
+import { EXGFilter } from '@/lib/exgfilter';            // Band-pass filter for EEG/ECG
 
-// Separate types for EEG and ECG
-export interface EEGDataEntry { time: number; ch0: number; ch1: number; }
-export interface ECGDataEntry { time: number; ch2: number; }
+// --- Data entry interfaces for EEG and ECG samples ---
+export interface EEGDataEntry { ch0: number }            // Single-channel EEG sample after filtering
+export interface ECGDataEntry { time: number; ch2: number; }  // Timestamped ECG sample
 
-// BLE & packet settings
-const SERVICE_UUID = '4fafc201-1fb5-459e-8fcc-c5c9c331914b';
-const DATA_CHAR_UUID = 'beb5483e-36e1-4688-b7f5-ea07361b26a8';
-const CONTROL_CHAR_UUID = '0000ff01-0000-1000-8000-00805f9b34fb';
-const SINGLE_SAMPLE_LEN = 7;        // bytes per sample packet
+// --- BLE service and characteristic UUIDs ---
+const SERVICE_UUID = '4fafc201-1fb5-459e-8fcc-c5c9c331914b';  // Custom BLE service for NPG device
+const DATA_CHAR_UUID = 'beb5483e-36e1-4688-b7f5-ea07361b26a8'; // Characteristic for streaming data
+const CONTROL_CHAR_UUID = '0000ff01-0000-1000-8000-00805f9b34fb'; // Characteristic for start/stop commands
+const SINGLE_SAMPLE_LEN = 7;        // Number of bytes per sample packet from device
 
-// FFT settings
-const FFT_SIZE = 256;
-const SAMPLE_RATE = 500;
+// --- Settings for FFT and signal analysis ---
+const FFT_SIZE = 256;              // Size of FFT window (must be power of two)
+const SAMPLE_RATE = 500;           // Sampling rate of device in Hz
+// Definitions for EEG frequency bands
 const DELTA_RANGE: [number, number] = [0.5, 4];
 const THETA_RANGE: [number, number] = [4, 8];
 const ALPHA_RANGE: [number, number] = [8, 12];
 const BETA_RANGE: [number, number] = [12, 30];
-const GAMMA_RANGE: [number, number] = [30, 100];
+const GAMMA_RANGE: [number, number] = [30, 45];
 
-// --- IIR EEG band-pass filter ---
-function applyFilter(input: number, state: { z1: number; z2: number; x1: number }): number {
-  state.x1 = input - (-1.47548044 * state.z1) - (0.58691951 * state.z2);
-  const output = 0.02785977 * state.x1 + 0.05571953 * state.z1 + 0.02785977 * state.z2;
-  state.z2 = state.z1;
-  state.z1 = state.x1;
-  return output;
-}
-
-
+// --- React hook: useBleStream ---
 export function useBleStream() {
-  const [eegData, setEegData] = useState<EEGDataEntry[]>([]);
-  const [ecgData, setEcgData] = useState<ECGDataEntry[]>([]);
-  const [connected, setConnected] = useState(false);
-  const [streaming, setStreaming] = useState(false);
+  // State for raw data arrays (capped at MAX_POINTS for performance)
+  const [eegData, setEegData] = useState<number[]>([]);          // Filtered EEG values
+  const [ecgData, setEcgData] = useState<ECGDataEntry[]>([]);     // ECG entries with timestamp
+  const [connected, setConnected] = useState(false);             // BLE connection status
+  const [streaming, setStreaming] = useState(false);             // Notification streaming status
 
-  let lastPeakTime = useRef<number | null>(null);
-  let rrIntervals = useRef<number[]>([]);
-  const [bpm, setBpm] = useState<number | null>(null);
+  // Refs for heart-rate calculation (RR interval detection)
+  const lastPeakTime = useRef<number | null>(null);              // Timestamp of last detected R-peak
+  const rrIntervals = useRef<number[]>([]);                      // List of recent RR intervals
+  const [bpm, setBpm] = useState<number | null>(null);           // Computed beats per minute
 
+  // BLE device and characteristic references (persist across renders)
   const deviceRef = useRef<BluetoothDevice | null>(null);
   const controlRef = useRef<BluetoothRemoteGATTCharacteristic | null>(null);
   const dataRef = useRef<BluetoothRemoteGATTCharacteristic | null>(null);
-  const timeIndex = useRef(0);
+  const timeIndex = useRef(0);  // Incrementing timestamp for ECG samples
 
-  // --- EEG band-pass filter states ---
-  const filterState0 = useRef({ z1: 0, z2: 0, x1: 0 });
-  const filterState1 = useRef({ z1: 0, z2: 0, x1: 0 });
+  // Filter instances for two EEG channels
+  const eegFilter0 = useRef(new EXGFilter(12));  // Band-pass filter order 12
+  const eegFilter1 = useRef(new EXGFilter(12));
 
-  class NotchFilter {
-    private z1 = 0;
-    private z2 = 0;
-    constructor(private fs = 500) { }
-    process(x: number) {
-      // 50 Hz notch coefficients for 500 Hz sampling
-      const a0 = 0.96508099;
-      const a1 = -1.56202714;
-      const a2 = 0.96508099;
-      const b1 = -1.56858163;
-      const b2 = 0.96424138;
+  // Notch filters to remove 50Hz power-line noise on EEG and ECG channels
+  const notch0 = useRef(new NotchFilter500Hz());  // EEG channel 0
+  const notch1 = useRef(new NotchFilter500Hz());  // EEG channel 1
+  const notch2 = useRef(new NotchFilter500Hz());  // ECG channel
 
-      const w = x - b1 * this.z1 - b2 * this.z2;
-      const y = a0 * w + a1 * this.z1 + a2 * this.z2;
-      this.z2 = this.z1;
-      this.z1 = w;
-      return y;
-    }
-  }
-  const notch0 = useRef(new NotchFilter(500));
-  const notch1 = useRef(new NotchFilter(500));
-  const notch2 = useRef(new NotchFilter(500));  // for ECG ch2
-
-  const normalize = (value: number) => (value - 2048) * (2 / 4096); // for 12-bit ADC
-
-
-
-  // FFT buffers & processors
+  // Buffers and FFT objects to compute spectral band powers
   const fft0 = useRef(new FFT(FFT_SIZE));
   const fft1 = useRef(new FFT(FFT_SIZE));
-  const buf0 = useRef<number[]>(Array(FFT_SIZE).fill(0));
-  const buf1 = useRef<number[]>(Array(FFT_SIZE).fill(0));
-  const sampleCounter = useRef(0);
+  const buf0 = useRef<number[]>(Array(FFT_SIZE).fill(0)); // Rolling buffer for channel 0
+  const buf1 = useRef<number[]>(Array(FFT_SIZE).fill(0)); // Rolling buffer for channel 1
+  const sampleCounter = useRef(0);                          // Counts samples to trigger FFT
 
-  // Band power state
+  // State to hold computed band power values for each EEG channel
   const [bandPower, setBandPower] = useState({
     ch0: { delta: 0, theta: 0, alpha: 0, beta: 0, gamma: 0 },
     ch1: { delta: 0, theta: 0, alpha: 0, beta: 0, gamma: 0 },
   });
 
-
+  // Handler: processes incoming BLE data notifications
   const handleNotification = (evt: Event) => {
     const char = evt.target as BluetoothRemoteGATTCharacteristic;
     const raw = new Uint8Array(char.value!.buffer);
+    console.log('Received data:', raw);
+    // Ensure full samples in packet
     if (raw.length % SINGLE_SAMPLE_LEN !== 0) return;
 
-    const newEegEntries: EEGDataEntry[] = [];
+    // Temporary arrays for new batch of data
+    const newEegEntries: number[] = [];
     const newEcgEntries: ECGDataEntry[] = [];
 
+    // Loop over each sample in the notification packet
     for (let offset = 0; offset < raw.length; offset += SINGLE_SAMPLE_LEN) {
-      // --- raw channel samples ---
+      // Extract 16-bit values for 3 channels from bytes
       const raw0 = raw[offset + 1] | (raw[offset + 2] << 8);
       const raw1 = raw[offset + 3] | (raw[offset + 4] << 8);
       const raw2 = raw[offset + 5] | (raw[offset + 6] << 8);
 
-      // --- notch filter ---
+      // 1) Apply notch filter to remove 50 Hz noise
       const notch0Out = notch0.current.process(raw0);
       const notch1Out = notch1.current.process(raw1);
       const notch2Out = notch2.current.process(raw2);
 
-      // --- normalize & band-pass EEG channels ---
-      const norm0 = normalize(notch0Out);
-      const norm1 = normalize(notch1Out);
-      const eeg0 = applyFilter(norm0, filterState0.current);
-      const eeg1 = applyFilter(norm1, filterState1.current);
-      const ecg = normalize(notch2Out);
+      // 2) Apply EXG band-pass filters for EEG channels
+      const eeg0 = eegFilter0.current.process(notch0Out);
+      const eeg1 = eegFilter1.current.process(notch1Out);
+      // ECG channel uses notch only (no further band-pass)
+      const ecg = notch2Out;
 
-      // --- timestamp ---
+      // Assign timestamp and store new entries
       const time = timeIndex.current++;
-      newEegEntries.push({ time, ch0: eeg0, ch1: eeg1 });
+      newEegEntries.push(eeg0);
       newEcgEntries.push({ time, ch2: ecg });
 
-      // --- FFT buffer accumulation ---
+      // 3) Append to FFT buffers and maintain window size
       buf0.current.push(eeg0);
       buf1.current.push(eeg1);
       if (buf0.current.length > FFT_SIZE) buf0.current.shift();
       if (buf1.current.length > FFT_SIZE) buf1.current.shift();
 
-      // --- compute band power every 5 samples ---
+      // 4) Every 5 samples, compute band power for each EEG channel
       if ((sampleCounter.current = (sampleCounter.current + 1) % 5) === 0) {
         const mags0 = fft0.current.computeMagnitudes(new Float32Array(buf0.current));
         const mags1 = fft1.current.computeMagnitudes(new Float32Array(buf1.current));
@@ -150,40 +129,40 @@ export function useBleStream() {
         });
       }
 
-      // --- BPM detection logic (unchanged) ---
+      // 5) R-peak detection for BPM: check interval since last peak
       if (lastPeakTime.current !== null) {
         const interval = time - lastPeakTime.current;
         if (interval > 30) {
           rrIntervals.current.push(interval);
+          // Keep only last 5 intervals for averaging
           if (rrIntervals.current.length > 5) rrIntervals.current.shift();
           const avgRR = rrIntervals.current.reduce((a, b) => a + b, 0) / rrIntervals.current.length;
           setBpm(Math.round((60 * SAMPLE_RATE) / avgRR));
         }
-        lastPeakTime.current = time;
       }
+      // Update last peak time for next iteration
+      lastPeakTime.current = time;
     }
 
+    // Limit history arrays to MAX_POINTS to avoid memory bloat
     const MAX_POINTS = 200;
-
     setEegData(prev => {
       const combined = [...prev, ...newEegEntries];
-      // if you want exactly MAX_POINTS, drop the oldest:
       return combined.length > MAX_POINTS
         ? combined.slice(combined.length - MAX_POINTS)
         : combined;
     });
-
     setEcgData(prev => {
       const combined = [...prev, ...newEcgEntries];
       return combined.length > MAX_POINTS
         ? combined.slice(combined.length - MAX_POINTS)
         : combined;
-    }); 
+    });
   };
 
-
-
+  // --- BLE connection lifecycle functions ---
   const connect = async () => {
+    // Prompt user to select a BLE device matching 'NPG' prefix
     const device = await navigator.bluetooth.requestDevice({
       filters: [{ namePrefix: 'NPG' }],
       optionalServices: [SERVICE_UUID],
@@ -193,10 +172,11 @@ export function useBleStream() {
     const svc = await server.getPrimaryService(SERVICE_UUID);
     controlRef.current = await svc.getCharacteristic(CONTROL_CHAR_UUID);
     dataRef.current = await svc.getCharacteristic(DATA_CHAR_UUID);
-    setConnected(true);
+    setConnected(true);  // Update connection state
   };
 
   const start = async () => {
+    // Send 'START' command and enable notifications
     if (!controlRef.current || !dataRef.current) return;
     await controlRef.current.writeValue(new TextEncoder().encode('START'));
     await dataRef.current.startNotifications();
@@ -205,6 +185,7 @@ export function useBleStream() {
   };
 
   const stop = async () => {
+    // Disable notifications and update streaming flag
     if (!dataRef.current) return;
     await dataRef.current.stopNotifications();
     dataRef.current.removeEventListener('characteristicvaluechanged', handleNotification);
@@ -212,15 +193,16 @@ export function useBleStream() {
   };
 
   const disconnect = () => {
+    // Stop streaming and disconnect BLE device
     stop();
     deviceRef.current?.gatt?.disconnect();
     setConnected(false);
   };
 
-  useEffect(() => {
-    return () => disconnect();
-  }, []);
+  // Automatically disconnect on unmount
+  useEffect(() => () => disconnect(), []);
 
+  // Return state and control methods to component
   return {
     eegData,
     ecgData,

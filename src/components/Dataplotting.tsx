@@ -13,16 +13,24 @@ import { Activity, Brain, Settings, Heart, Box } from 'lucide-react';
 import { useBleStream } from '../components/Bledata';
 import WebglPlotCanvas from '../components/WebglPlotCanvas';
 
-// Local channel key types matching BLE data shape
-type EEGChannel = 'ch0' | 'ch1';
-type ECGChannel = 'ch2';
+// For single-channel EEG we’ll use key 'ch0'
+const EEG_CHANNELS = ['ch0']
+// ECG data entries are already objects with ch2 & ch3
+const ECG_CHANNELS = ['ch2', 'ch3']
+
+// Color mapping for channels
+const CHANNEL_COLORS: Record<string, string> = {
+  ch0: '#C29963',  // EEG channel
+  ch2: '#E4967E',  // ECG channel 1
+  ch3: '#6A5D7B',  // ECG channel 2
+}
 
 export default function SignalVisualizer() {
-  const eegChannelList: EEGChannel[] = ['ch0', 'ch1'];
-  const ecgChannelList: ECGChannel[] = ['ch2'];
+   
 
-  const [eegChannels, setEegChannels] = useState<EEGChannel[]>([...eegChannelList]);
-  const [ecgChannels, setEcgChannels] = useState<ECGChannel[]>([...ecgChannelList]);
+    
+
+  
   const [darkMode, setDarkMode] = useState(false);
 
   const {
@@ -37,17 +45,10 @@ export default function SignalVisualizer() {
     disconnect,
     bandPower,
   } = useBleStream();
+  // Map eegData (number[]) into array of objects { ch0: value }
+  const eegBuffer = eegData.map(v => ({ ch0: v }))
 
-  const toggleEegChannel = (ch: EEGChannel) => {
-    setEegChannels(prev =>
-      prev.includes(ch) ? prev.filter(x => x !== ch) : [...prev, ch]
-    );
-  };
-  const toggleEcgChannel = (ch: ECGChannel) => {
-    setEcgChannels(prev =>
-      prev.includes(ch) ? prev.filter(x => x !== ch) : [...prev, ch]
-    );
-  };
+  
   let highBPM = 0;
   let lowBPM = 0;
   let avgBPM = 0;
@@ -275,22 +276,12 @@ export default function SignalVisualizer() {
                 <div className="md:col-span-2 flex flex-col gap-3 ">
                     {/* Chart container */}
                     <div className={`h-64 max-h-[300px] rounded-xl overflow-hidden p-2 transition-colors duration-300  ${darkMode ? 'bg-zinc-800/90' : 'bg-white'}`}>
-                        <div className="flex gap-2 mb-2">
-                            {eegChannelList.map(ch => (
-                                <button
-                                    key={ch}
-                                    onClick={() => toggleEegChannel(ch)}
-                                    className={`px-2 rounded transition-all duration-200 ${eegChannels.includes(ch) ? 'text-white' : 'text-gray-600'}`}
-                                    style={{
-                                        backgroundColor: eegChannels.includes(ch) ? channelColors[ch] : 'transparent',
-                                        border: '1px solid ' + (eegChannels.includes(ch) ? channelColors[ch] : '#cbd5e1'),
-                                    }}
-                                >
-                                    {ch}
-                                </button>
-                            ))}
-                        </div>
-                        <WebglPlotCanvas data={eegData.map(entry => ({ ...entry }))} channels={eegChannels} colors={channelColors}  />
+                       
+                    <WebglPlotCanvas
+          data={eegBuffer}
+          channels={EEG_CHANNELS}
+          colors={CHANNEL_COLORS}
+        />
                     </div></div>
 
             </div>
@@ -335,22 +326,12 @@ export default function SignalVisualizer() {
 
 
                 <div className={`h-64 max-h-[300px] rounded-xl overflow-hidden p-2 transition-colors duration-300  ${darkMode ? 'bg-zinc-800/90' : 'bg-white'}`}>
-                        <div className="flex gap-2 mb-2">
-                            {ecgChannelList.map(ch => (
-                                <button
-                                    key={ch}
-                                    onClick={() => toggleEcgChannel(ch)}
-                                    className={`px-2 rounded transition-all duration-200 ${ecgChannels.includes(ch) ? 'text-white' : 'text-gray-600'}`}
-                                    style={{
-                                        backgroundColor: ecgChannels.includes(ch) ? channelColors[ch] : 'transparent',
-                                        border: '1px solid ' + (ecgChannels.includes(ch) ? channelColors[ch] : '#cbd5e1'),
-                                    }}
-                                >
-                                    {ch}
-                                </button>
-                            ))}
-                        </div>
-                        <WebglPlotCanvas data={ecgData.map(entry => ({ ...entry }))} channels={ecgChannels} colors={channelColors} />
+                       
+                <WebglPlotCanvas
+          data={eegBuffer}
+          channels={EEG_CHANNELS}
+          colors={CHANNEL_COLORS}
+        />
                     </div>
                 </div>
             </div>
