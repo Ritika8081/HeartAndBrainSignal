@@ -4,7 +4,7 @@ import { useState, useRef, useEffect } from 'react';
 
 import { FFT, calculateBandPower } from '@/lib/fft';
 // --- Import notch and EXG filters for signal cleaning ---
-import { NotchFilter500Hz } from '@/lib/notchfilter';  // 50 Hz notch filter implementation
+import { NotchFilter } from '@/lib/notchfilter';  // 50 Hz notch filter implementation
 import { EXGFilter } from '@/lib/eegfilter';            // Band-pass filter for EEG/ECG
 
 // --- Data entry interfaces for EEG and ECG samples ---
@@ -74,6 +74,7 @@ export function useBleStream() {
 
     return () => clearInterval(interval);
   }, []);
+  
   // State for raw data arrays (capped at MAX_POINTS for performance)
   const [eegData, setEegData] = useState<number[]>([]);          // Filtered EEG values
   const [ecgData, setEcgData] = useState<ECGDataEntry[]>([]);     // ECG entries with timestamp
@@ -99,9 +100,9 @@ export function useBleStream() {
   const eegFilter1 = useRef(new EXGFilter(12));
 
   // Notch filters to remove 50Hz power-line noise on EEG and ECG channels
-  const notch0 = useRef(new NotchFilter500Hz());  // EEG channel 0
-  const notch1 = useRef(new NotchFilter500Hz());  // EEG channel 1
-  const notch2 = useRef(new NotchFilter500Hz());  // ECG channel
+  const notch0 = useRef(new NotchFilter());  // EEG channel 0
+  const notch1 = useRef(new NotchFilter());  // EEG channel 1
+  const notch2 = useRef(new NotchFilter());  // ECG channel
 
   // Buffers and FFT objects to compute spectral band powers
   const fft0 = useRef(new FFT(FFT_SIZE));

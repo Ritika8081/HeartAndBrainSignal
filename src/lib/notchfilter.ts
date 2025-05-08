@@ -1,5 +1,5 @@
 // Notch filter class to remove 50 Hz powerline noise
- export  class NotchFilter500Hz {
+ export  class NotchFilter {
     // Internal state for two cascaded biquad sections
     private s11 = 0; // section1 delay-1
     private s12 = 0; // section1 delay-2
