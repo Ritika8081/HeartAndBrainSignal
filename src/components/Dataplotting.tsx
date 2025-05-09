@@ -1,6 +1,6 @@
 // app/SignalVisualizer.tsx
 'use client'
-import { useState } from 'react';
+import { useState, useRef, useCallback } from 'react';
 import {
     ResponsiveContainer,
     RadarChart,
@@ -28,7 +28,30 @@ const CHANNEL_COLORS: Record<string, string> = {
 export default function SignalVisualizer() {
 
     const [darkMode, setDarkMode] = useState(false);
+    const canvaseeg1Ref = useRef<any>(null); // Create a ref for the Canvas component
+    const canvaseeg2Ref = useRef<any>(null); // Create a ref for the Canvas component
+    const canvasecgRef = useRef<any>(null); // Create a ref for the Canvas component
 
+
+    let previousCounter: number | null = null; // Variable to store the previous counter value for loss detection
+    const datastream = useCallback((data: number[]) => {
+
+        canvaseeg1Ref.current.updateData([data[0],data[1],1]); // Assuming data is the new data to be displayed
+        canvaseeg2Ref.current.updateData([data[0],data[2],2]); // Assuming data is the new data to be displayed
+        canvasecgRef.current.updateData([data[0],data[3],3]); // Assuming data is the new data to be displayed
+
+        if (previousCounter !== null) {
+            // If there was a previous counter value
+            const expectedCounter: number = (previousCounter + 1) % 256; // Calculate the expected counter value
+            if (data[0] !== expectedCounter) {
+                // Check for data loss by comparing the current counter with the expected counter
+                console.warn(
+                    `Data loss detected in datapass! Previous counter: ${previousCounter}, Current counter: ${data[0]}`
+                );
+            }
+        }
+        previousCounter = data[0]; // Update the previous counter with the current counter
+    }, []);
     const {
         eegData,
         counters,
@@ -41,18 +64,15 @@ export default function SignalVisualizer() {
         stop,
         disconnect,
         bandPower,
-    } = useBleStream();
-    // Map eegData (number[]) into array of objects { ch0: value }
-    const eegBuffer = eegData.map(v => ({ ch0: v, ch2: v }))
-    // Pull out the numeric ch2 field from each entry
-    const ecgBuffer = ecgData.map(({ ch2 }) => ({ ch2 }));
-
-
+    } = useBleStream(datastream);
     let highBPM = 0;
     let lowBPM = 0;
     let avgBPM = 0;
 
-
+    // Map eegData (number[]) into array of objects { ch0: value }
+    const eegBuffer = eegData.map(v => ({ ch0: v, ch2: v }))
+    // Pull out the numeric ch2 field from each entry
+    const ecgBuffer = ecgData.map(({ ch2 }) => ({ ch2 }));
     const channelColors: Record<string, string> = {
         ch0: '#C29963',
         ch1: '#548687',
@@ -277,6 +297,7 @@ export default function SignalVisualizer() {
                             <div className={`h-64 max-h-[300px] rounded-xl overflow-hidden p-2 transition-colors duration-300  ${darkMode ? 'bg-zinc-800/90' : 'bg-white'}`}>
 
                                 <WebglPlotCanvas
+                                    ref={canvaseeg1Ref} // Pass the ref to the Canvas component
                                     data={ecgBuffer}
                                     channels={EEG_CHANNELS}
                                     colors={CHANNEL_COLORS}
@@ -328,6 +349,17 @@ export default function SignalVisualizer() {
                             <div className={`h-64 max-h-[300px] rounded-xl overflow-hidden p-2 transition-colors duration-300  ${darkMode ? 'bg-zinc-800/90' : 'bg-white'}`}>
 
                                 <WebglPlotCanvas
+                                    ref={canvaseeg2Ref} // Pass the ref to the Canvas component
+                                    data={ecgBuffer}
+                                    channels={ECG_CHANNELS}
+                                    colors={{ ch2: CHANNEL_COLORS.ch2 }}
+                                    counter={counters}        // if you still want to show sample-counter overlay
+                                />
+                            </div>
+                            <div className={`h-64 max-h-[300px] rounded-xl overflow-hidden p-2 transition-colors duration-300  ${darkMode ? 'bg-zinc-800/90' : 'bg-white'}`}>
+
+                                <WebglPlotCanvas
+                                    ref={canvasecgRef} // Pass the ref to the Canvas component
                                     data={ecgBuffer}
                                     channels={ECG_CHANNELS}
                                     colors={{ ch2: CHANNEL_COLORS.ch2 }}
