@@ -51,18 +51,4 @@ export class FFT {
     }
   }
   
-  export function calculateBandPower(
-    mags: Float32Array,
-    freqRange: [number, number],
-    sampleRate = 500,
-    fftSize = 256
-  ) {
-    const res = sampleRate / fftSize;
-    const [f1, f2] = freqRange;
-    const start = Math.max(1, Math.floor(f1 / res));
-    const end   = Math.min(mags.length - 1, Math.floor(f2 / res));
-    let p = 0;
-    for (let i = start; i <= end; i++) p += mags[i] * mags[i];
-    return p;
-  }
   

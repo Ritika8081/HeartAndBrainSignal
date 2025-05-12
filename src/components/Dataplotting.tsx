@@ -1,6 +1,6 @@
 // app/SignalVisualizer.tsx
 'use client'
-import { useState, useRef, useCallback } from 'react';
+import { useState, useRef, useCallback, useEffect } from 'react';
 import {
     ResponsiveContainer,
     RadarChart,
@@ -12,6 +12,8 @@ import {
 import { Activity, Brain, Settings, Heart, Box } from 'lucide-react';
 import { useBleStream } from '../components/Bledata';
 import WebglPlotCanvas from '../components/WebglPlotCanvas';
+
+
 
 const CHANNEL_COLORS: Record<string, string> = {
     ch0: '#C29963',  // EEG channel 0
@@ -27,6 +29,12 @@ export default function SignalVisualizer() {
     const canvaseeg1Ref = useRef<any>(null); // Create a ref for the Canvas component
     const canvaseeg2Ref = useRef<any>(null); // Create a ref for the Canvas component
     const canvasecgRef = useRef<any>(null); // Create a ref for the Canvas component
+    const [tick, setTick] = useState(0);
+    const buf0Ref = useRef<number[]>([]);
+    const buf1Ref = useRef<number[]>([]);
+    const radarDataCh0Ref = useRef<{ subject: string; value: number }[]>([]);
+    const radarDataCh1Ref = useRef<{ subject: string; value: number }[]>([]);
+    const workerRef = useRef<Worker | null>(null);
 
 
     let previousCounter: number | null = null; // Variable to store the previous counter value for loss detection
@@ -36,6 +44,8 @@ export default function SignalVisualizer() {
         canvaseeg2Ref.current.updateData([data[0], data[2], 2]); // Assuming data is the new data to be displayed
         canvasecgRef.current.updateData([data[0], data[3], 3]); // Assuming data is the new data to be displayed
 
+        // push samples into the worker pipeline
+        onNewSample(data[1], data[2]);
         if (previousCounter !== null) {
             // If there was a previous counter value
             const expectedCounter: number = (previousCounter + 1) % 256; // Calculate the expected counter value
@@ -57,7 +67,6 @@ export default function SignalVisualizer() {
         start,
         stop,
         disconnect,
-        bandPower,
     } = useBleStream(datastream);
     let highBPM = 0;
     let lowBPM = 0;
@@ -70,22 +79,60 @@ export default function SignalVisualizer() {
         ch2: '#9A7197'
     };
 
-    const bands = [
-        { subject: 'Delta', key: 'delta' },
-        { subject: 'Theta', key: 'theta' },
-        { subject: 'Alpha', key: 'alpha' },
-        { subject: 'Beta', key: 'beta' },
-        { subject: 'Gamma', key: 'gamma' },
-    ] as const;
+    // inside your component, before the return:
+    const bandData = [
+        { subject: 'Delta', value: 0 },
+        { subject: 'Theta', value: 0 },
+        { subject: 'Alpha', value: 0 },
+        { subject: 'Beta', value: 0 },
+        { subject: 'Gamma', value: 0 },
+    ];
 
-    const radarDataCh0 = bands.map(b => ({
-        subject: b.subject,
-        value: bandPower.ch0[b.key],
-    }));
-    const radarDataCh1 = bands.map(b => ({
-        subject: b.subject,
-        value: bandPower.ch1[b.key],
-    }));
+    // 2) Worker instantiation & message handling
+    useEffect(() => {
+        workerRef.current = new Worker(
+            new URL('../webworker/bandPower.worker.ts', import.meta.url),
+            { type: 'module' }
+        );
+        workerRef.current.onmessage = (e) => {
+            const { bandPower0, bandPower1 } = e.data;
+            // Build the radar-chart data arrays
+            radarDataCh0Ref.current = [
+                { subject: 'Delta', value: bandPower0.delta },
+                { subject: 'Theta', value: bandPower0.theta },
+                { subject: 'Alpha', value: bandPower0.alpha },
+                { subject: 'Beta', value: bandPower0.beta },
+                { subject: 'Gamma', value: bandPower0.gamma },
+            ];
+            radarDataCh1Ref.current = [
+                { subject: 'Delta', value: bandPower1.delta },
+                { subject: 'Theta', value: bandPower1.theta },
+                { subject: 'Alpha', value: bandPower1.alpha },
+                { subject: 'Beta', value: bandPower1.beta },
+                { subject: 'Gamma', value: bandPower1.gamma },
+            ];
+            setTick((t) => t + 1);    // force re-render so charts update
+        };
+        return () => { workerRef.current?.terminate(); };
+    }, []);
+
+    // 3) On each new EEG sample, buffer and send to worker
+    const onNewSample = useCallback((eeg0: number, eeg1: number) => {
+        buf0Ref.current.push(eeg0);
+        buf1Ref.current.push(eeg1);
+        if (buf0Ref.current.length > 256) buf0Ref.current.shift();
+        if (buf1Ref.current.length > 256) buf1Ref.current.shift();
+
+        if (buf0Ref.current.length === 256) {
+            workerRef.current?.postMessage({
+                eeg0: [...buf0Ref.current],
+                eeg1: [...buf1Ref.current],
+                sampleRate: 500,
+                fftSize: 256,
+            });
+        }
+    }, []);
+
 
     const bgGradient = darkMode
         ? 'bg-gradient-to-b from-zinc-900 to-neutral-900'
@@ -228,54 +275,74 @@ export default function SignalVisualizer() {
 
                                     <div className="flex-1 h-full">
                                         <ResponsiveContainer width="100%" height="100%">
-                                            <RadarChart cx="50%" cy="50%" outerRadius="70%" data={radarDataCh0}>
+                                            <RadarChart
+                                                data={radarDataCh0Ref.current.length ? radarDataCh0Ref.current : bandData}
+                                                cx="50%" cy="50%"
+                                                outerRadius="70%"
+                                            >
                                                 <PolarGrid strokeDasharray="3 3" stroke={gridLines} />
+
+                                                {/* Keep the subjects (Delta, Theta, etc.) */}
                                                 <PolarAngleAxis
                                                     dataKey="subject"
-                                                    tick={{ fill: axisColor, fontSize: 10 }}
+                                                    tick={{ fill: axisColor, fontSize: 12 }}
                                                 />
+
+                                                {/* Hide the numeric radius labels and lines */}
                                                 <PolarRadiusAxis
-                                                    angle={30}
-                                                    domain={[0, 100]}
-                                                    tick={{ fill: axisColor, fontSize: 10 }}
+                                                    domain={[0, 'auto']}
+                                                    tick={false}
+                                                    axisLine={false}
+                                                    tickLine={false}
                                                 />
+
                                                 <Radar
                                                     name="Ch0"
                                                     dataKey="value"
-                                                    stroke={darkMode ? '#C29963' : '#A27C48'}
-                                                    fill={darkMode ? '#C29963' : '#A27C48'}
+                                                    stroke={channelColors.ch0}
+                                                    fill={channelColors.ch0}
                                                     fillOpacity={0.6}
                                                 />
                                             </RadarChart>
                                         </ResponsiveContainer>
+
                                     </div>
                                 </div>
 
                                 {/* Right chart: Channel 1 */}
                                 <div className="flex-1 pl-2 flex flex-col">
-
                                     <div className="flex-1 h-full">
                                         <ResponsiveContainer width="100%" height="100%">
-                                            <RadarChart cx="50%" cy="50%" outerRadius="70%" data={radarDataCh1}>
+                                            <RadarChart
+                                                data={radarDataCh1Ref.current.length ? radarDataCh0Ref.current : bandData}
+                                                cx="50%" cy="50%" outerRadius="70%"
+                                            >
                                                 <PolarGrid strokeDasharray="3 3" stroke={gridLines} />
+
+                                                {/* Keep only the band labels */}
                                                 <PolarAngleAxis
                                                     dataKey="subject"
-                                                    tick={{ fill: axisColor, fontSize: 10 }}
+                                                    tick={{ fill: axisColor, fontSize: 12 }}
                                                 />
+
+                                                {/* Hide the numeric radius labels and axis lines */}
                                                 <PolarRadiusAxis
-                                                    angle={30}
-                                                    domain={[0, 100]}
-                                                    tick={{ fill: axisColor, fontSize: 10 }}
+                                                    domain={[0, 'auto']}
+                                                    tick={false}
+                                                    axisLine={false}
+                                                    tickLine={false}
                                                 />
+
                                                 <Radar
                                                     name="Ch1"
                                                     dataKey="value"
-                                                    stroke={darkMode ? '#548687' : '#2F6F6B'}
-                                                    fill={darkMode ? '#548687' : '#2F6F6B'}
+                                                    stroke={channelColors.ch1}
+                                                    fill={channelColors.ch1}
                                                     fillOpacity={0.6}
                                                 />
                                             </RadarChart>
                                         </ResponsiveContainer>
+
                                     </div>
                                 </div>
                             </div>

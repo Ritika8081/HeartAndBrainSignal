@@ -1,12 +1,9 @@
 'use client';
 
 import { useState, useRef, useEffect, useCallback } from 'react';
-import { FFT, calculateBandPower } from '@/lib/fft';
-import { NotchFilter } from '@/lib/notchfilter';
+import { FFT} from '@/lib/fft';
 import { EXGFilter, Notch } from '@/lib/filters';
 
-export interface EEGDataEntry { ch0: number }
-export interface ECGDataEntry { ch2: number }
 
 const SERVICE_UUID = '4fafc201-1fb5-459e-8fcc-c5c9c331914b';
 const DATA_CHAR_UUID = 'beb5483e-36e1-4688-b7f5-ea07361b26a8';
@@ -18,20 +15,13 @@ const SINGLE_SAMPLE_LEN = 7;
 const BLOCK_COUNT = 10;
 const NEW_PACKET_LEN = SINGLE_SAMPLE_LEN * BLOCK_COUNT;
 
-const DELTA_RANGE: [number, number] = [0.5, 4];
-const THETA_RANGE: [number, number] = [4, 8];
-const ALPHA_RANGE: [number, number] = [8, 12];
-const BETA_RANGE: [number, number] = [12, 30];
-const GAMMA_RANGE: [number, number] = [30, 45];
-
 export function useBleStream(datastreamCallback?: (data: number[]) => void) {
-  const [eegData, setEegData] = useState<number[]>([]);
-  const [ecgData, setEcgData] = useState<ECGDataEntry[]>([]);
+ 
   const [connected, setConnected] = useState(false);
   const [streaming, setStreaming] = useState(false);
   const [counters, setCounters] = useState<number[]>([]);
   const [bpm, setBpm] = useState<number | null>(null);
-
+  const worker = useRef<Worker | null>(null);
   const counterLog = useRef<number[]>([]);
   const ecgLog = useRef<number[]>([]);
   const lastPeakTime = useRef<number | null>(null);
@@ -45,15 +35,11 @@ export function useBleStream(datastreamCallback?: (data: number[]) => void) {
   const fft1 = useRef(new FFT(FFT_SIZE));
   const buf0 = useRef<number[]>(Array(FFT_SIZE).fill(0));
   const buf1 = useRef<number[]>(Array(FFT_SIZE).fill(0));
-  const sampleCounter = useRef(0);
-
-  const [bandPower, setBandPower] = useState({
-    ch0: { delta: 0, theta: 0, alpha: 0, beta: 0, gamma: 0 },
-    ch1: { delta: 0, theta: 0, alpha: 0, beta: 0, gamma: 0 },
-  });
-
+ 
+ 
   const notchFilters = useRef(Array.from({ length: 3 }, () => new Notch()));
   const exgFilters = useRef(Array.from({ length: 3 }, () => new EXGFilter()));
+  
 
   useEffect(() => {
     // Configure filters
@@ -89,16 +75,17 @@ export function useBleStream(datastreamCallback?: (data: number[]) => void) {
     if (datastreamCallback) {
       datastreamCallback(data);
     }
+    // Add this after buffers are updated in processSample
+if (buf0.current.length === FFT_SIZE && buf1.current.length === FFT_SIZE) {
+  worker.current?.postMessage({
+    eeg0: [...buf0.current],
+    eeg1: [...buf1.current],
+    sampleRate: SAMPLE_RATE,
+  });
+}
 
     const time = timeIndex.current++;
-    setEegData((prev) => {
-      const updated = [...prev, eeg0];
-      return updated.length > 500 ? updated.slice(updated.length - 500) : updated;
-    });
-    setEcgData((prev) => {
-      const updated = [...prev, { ch2: ecg }];
-      return updated.length > 500 ? updated.slice(updated.length - 500) : updated;
-    });
+  
     setCounters((prev) => {
       const updated = [...prev, counter];
       return updated.length > 500 ? updated.slice(updated.length - 500) : updated;
@@ -112,27 +99,7 @@ export function useBleStream(datastreamCallback?: (data: number[]) => void) {
     if (buf0.current.length > FFT_SIZE) buf0.current.shift();
     if (buf1.current.length > FFT_SIZE) buf1.current.shift();
 
-    if ((sampleCounter.current = (sampleCounter.current + 1) % 5) === 0) {
-      const mags0 = fft0.current.computeMagnitudes(new Float32Array(buf0.current));
-      const mags1 = fft1.current.computeMagnitudes(new Float32Array(buf1.current));
-      setBandPower({
-        ch0: {
-          delta: calculateBandPower(mags0, DELTA_RANGE, SAMPLE_RATE, FFT_SIZE),
-          theta: calculateBandPower(mags0, THETA_RANGE, SAMPLE_RATE, FFT_SIZE),
-          alpha: calculateBandPower(mags0, ALPHA_RANGE, SAMPLE_RATE, FFT_SIZE),
-          beta: calculateBandPower(mags0, BETA_RANGE, SAMPLE_RATE, FFT_SIZE),
-          gamma: calculateBandPower(mags0, GAMMA_RANGE, SAMPLE_RATE, FFT_SIZE),
-        },
-        ch1: {
-          delta: calculateBandPower(mags1, DELTA_RANGE, SAMPLE_RATE, FFT_SIZE),
-          theta: calculateBandPower(mags1, THETA_RANGE, SAMPLE_RATE, FFT_SIZE),
-          alpha: calculateBandPower(mags1, ALPHA_RANGE, SAMPLE_RATE, FFT_SIZE),
-          beta: calculateBandPower(mags1, BETA_RANGE, SAMPLE_RATE, FFT_SIZE),
-          gamma: calculateBandPower(mags1, GAMMA_RANGE, SAMPLE_RATE, FFT_SIZE),
-        },
-      });
-    }
-
+   
     if (lastPeakTime.current !== null) {
       const interval = time - lastPeakTime.current;
       if (interval > 30) {
@@ -191,8 +158,8 @@ export function useBleStream(datastreamCallback?: (data: number[]) => void) {
     setStreaming(true);
   };
 
-  // Stop notifications and streaming
-  const stop = async () => {
+   // Stop notifications and streaming
+   const stop = async () => {
     dataRef.current?.removeEventListener('characteristicvaluechanged', handleNotification);
 
     try {
@@ -259,6 +226,7 @@ export function useBleStream(datastreamCallback?: (data: number[]) => void) {
     start,
     stop,
     disconnect,
-    bandPower,
+  
   };
+  
 }
