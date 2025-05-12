@@ -35,28 +35,54 @@ export default function SignalVisualizer() {
     const radarDataCh0Ref = useRef<{ subject: string; value: number }[]>([]);
     const radarDataCh1Ref = useRef<{ subject: string; value: number }[]>([]);
     const workerRef = useRef<Worker | null>(null);
-
+    const dataProcessorWorkerRef = useRef<Worker | null>(null);
+    const [processedData, setProcessedData] = useState<{
+        eeg0: number;
+        eeg1: number;
+        ecg: number;
+        counter: number;
+    } | null>(null);
 
     let previousCounter: number | null = null; // Variable to store the previous counter value for loss detection
+
+
+    // 1. Remove the direct canvas updates from `datastream`
     const datastream = useCallback((data: number[]) => {
-
-        canvaseeg1Ref.current.updateData([data[0], data[1], 1]); // Assuming data is the new data to be displayed
-        canvaseeg2Ref.current.updateData([data[0], data[2], 2]); // Assuming data is the new data to be displayed
-        canvasecgRef.current.updateData([data[0], data[3], 3]); // Assuming data is the new data to be displayed
-
-        // push samples into the worker pipeline
-        onNewSample(data[1], data[2]);
-        if (previousCounter !== null) {
-            // If there was a previous counter value
-            const expectedCounter: number = (previousCounter + 1) % 256; // Calculate the expected counter value
-            if (data[0] !== expectedCounter) {
-                // Check for data loss by comparing the current counter with the expected counter
-                console.warn(
-                    `Data loss detected in datapass! Previous counter: ${previousCounter}, Current counter: ${data[0]}`
-                );
+        // Only send raw data to worker (no direct canvas updates)
+        dataProcessorWorkerRef.current?.postMessage({
+            command: 'process',
+            rawData: {
+                counter: data[0],
+                raw0: data[1],  // EEG 1
+                raw1: data[2],  // EEG 2
+                raw2: data[3]   // ECG
             }
+        });
+
+        // Keep counter-loss detection
+        if (previousCounter !== null && data[0] !== (previousCounter + 1) % 256) {
+            console.warn(`Data loss detected! Previous: ${previousCounter}, Current: ${data[0]}`);
         }
-        previousCounter = data[0]; // Update the previous counter with the current counter
+        previousCounter = data[0];
+    }, []);
+
+    // 2. Let the worker's onmessage handle ALL visualization updates
+    useEffect(() => {
+        const worker = new Worker(
+            new URL('../webworker/dataProcessor.worker.ts', import.meta.url),
+            { type: 'module' }
+        );
+        worker.onmessage = (e) => {
+            if (e.data.type === 'processedData') {
+                const { counter, eeg0, eeg1, ecg } = e.data.data;
+                canvaseeg1Ref.current?.updateData([counter, eeg0, 1]);
+                canvaseeg2Ref.current?.updateData([counter, eeg1, 2]);
+                canvasecgRef.current?.updateData([counter, ecg, 3]);
+                onNewSample(eeg0, eeg1); // For radar charts
+            }
+        };
+        dataProcessorWorkerRef.current = worker;
+        return () => worker.terminate();
     }, []);
     const {
         counters,

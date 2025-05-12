@@ -1,123 +1,44 @@
 'use client';
 
 import { useState, useRef, useEffect, useCallback } from 'react';
-import { FFT} from '@/lib/fft';
-import { EXGFilter, Notch } from '@/lib/filters';
 
 
 const SERVICE_UUID = '4fafc201-1fb5-459e-8fcc-c5c9c331914b';
 const DATA_CHAR_UUID = 'beb5483e-36e1-4688-b7f5-ea07361b26a8';
 const CONTROL_CHAR_UUID = '0000ff01-0000-1000-8000-00805f9b34fb';
 
-const SAMPLE_RATE = 500;
-const FFT_SIZE = 256;
 const SINGLE_SAMPLE_LEN = 7;
 const BLOCK_COUNT = 10;
 const NEW_PACKET_LEN = SINGLE_SAMPLE_LEN * BLOCK_COUNT;
 
 export function useBleStream(datastreamCallback?: (data: number[]) => void) {
- 
+
+  const workerRef = useRef<Worker | null>(null);
   const [connected, setConnected] = useState(false);
   const [streaming, setStreaming] = useState(false);
   const [counters, setCounters] = useState<number[]>([]);
   const [bpm, setBpm] = useState<number | null>(null);
-  const worker = useRef<Worker | null>(null);
-  const counterLog = useRef<number[]>([]);
-  const ecgLog = useRef<number[]>([]);
-  const lastPeakTime = useRef<number | null>(null);
-  const rrIntervals = useRef<number[]>([]);
+ 
+ 
   const deviceRef = useRef<BluetoothDevice | null>(null);
   const controlRef = useRef<BluetoothRemoteGATTCharacteristic | null>(null);
   const dataRef = useRef<BluetoothRemoteGATTCharacteristic | null>(null);
-  const timeIndex = useRef(0);
-
-  const fft0 = useRef(new FFT(FFT_SIZE));
-  const fft1 = useRef(new FFT(FFT_SIZE));
-  const buf0 = useRef<number[]>(Array(FFT_SIZE).fill(0));
-  const buf1 = useRef<number[]>(Array(FFT_SIZE).fill(0));
- 
- 
-  const notchFilters = useRef(Array.from({ length: 3 }, () => new Notch()));
-  const exgFilters = useRef(Array.from({ length: 3 }, () => new EXGFilter()));
   
-
-  useEffect(() => {
-    // Configure filters
-    notchFilters.current.forEach((filter) => filter.setbits(500));
-    exgFilters.current.forEach((filter) => filter.setbits("12", 500));
-  }, []);
-
-  const processSample = useCallback((dataView: DataView): void => {
-    if (dataView.byteLength !== SINGLE_SAMPLE_LEN) {
-      console.log("Unexpected sample length: " + dataView.byteLength);
-      return;
-    }
-
-    const counter = dataView.getUint8(0);
-    const raw0 = dataView.getInt16(1, false);
-    const raw1 = dataView.getInt16(3, false);
-    const raw2 = dataView.getInt16(5, false);
-
-    const eeg0 = notchFilters.current[0].process(
-      exgFilters.current[0].process(raw0, 3),
-      1
-    );
-    const eeg1 = notchFilters.current[1].process(
-      exgFilters.current[1].process(raw1, 3),
-      1
-    );
-    const ecg = notchFilters.current[2].process(
-      exgFilters.current[2].process(raw2, 1),
-      1
-    );
-
-    const data: number[] = [counter, eeg0, eeg1, ecg];
-    if (datastreamCallback) {
-      datastreamCallback(data);
-    }
-    // Add this after buffers are updated in processSample
-if (buf0.current.length === FFT_SIZE && buf1.current.length === FFT_SIZE) {
-  worker.current?.postMessage({
-    eeg0: [...buf0.current],
-    eeg1: [...buf1.current],
-    sampleRate: SAMPLE_RATE,
-  });
-}
-
-    const time = timeIndex.current++;
-  
-    setCounters((prev) => {
-      const updated = [...prev, counter];
-      return updated.length > 500 ? updated.slice(updated.length - 500) : updated;
-    });
-
-    counterLog.current.push(counter);
-    ecgLog.current.push(ecg);
-
-    buf0.current.push(eeg0);
-    buf1.current.push(eeg1);
-    if (buf0.current.length > FFT_SIZE) buf0.current.shift();
-    if (buf1.current.length > FFT_SIZE) buf1.current.shift();
-
-   
-    if (lastPeakTime.current !== null) {
-      const interval = time - lastPeakTime.current;
-      if (interval > 30) {
-        rrIntervals.current.push(interval);
-        if (rrIntervals.current.length > 5) rrIntervals.current.shift();
-        const avgRR = rrIntervals.current.reduce((a, b) => a + b, 0) / rrIntervals.current.length;
-        setBpm(Math.round((60 * SAMPLE_RATE) / avgRR));
-      }
-    }
-    lastPeakTime.current = time;
+ 
+  const processSample = useCallback((dataView: DataView) => {
+    if (dataView.byteLength !== SINGLE_SAMPLE_LEN) return;
+    
+    datastreamCallback?.([
+      dataView.getUint8(0),      // counter
+      dataView.getInt16(1, false), // raw0 (EEG 1)
+      dataView.getInt16(3, false), // raw1 (EEG 2)
+      dataView.getInt16(5, false)  // raw2 (ECG)
+    ]);
   }, [datastreamCallback]);
 
   const handleNotification = (event: Event) => {
     const target = event.target as BluetoothRemoteGATTCharacteristic;
-    if (!target.value) {
-      console.log("Received event with no value.");
-      return;
-    }
+    if (!target.value) return;
     const value = target.value;
 
     if (value.byteLength === NEW_PACKET_LEN) {
@@ -128,8 +49,6 @@ if (buf0.current.length === FFT_SIZE && buf1.current.length === FFT_SIZE) {
       }
     } else if (value.byteLength === SINGLE_SAMPLE_LEN) {
       processSample(new DataView(value.buffer));
-    } else {
-      console.log("Unexpected packet length: " + value.byteLength);
     }
   };
 
@@ -216,7 +135,6 @@ if (buf0.current.length === FFT_SIZE && buf1.current.length === FFT_SIZE) {
     };
   }, []);
 
-
   return {
     counters,
     bpm,
@@ -226,7 +144,6 @@ if (buf0.current.length === FFT_SIZE && buf1.current.length === FFT_SIZE) {
     start,
     stop,
     disconnect,
-  
   };
   
 }

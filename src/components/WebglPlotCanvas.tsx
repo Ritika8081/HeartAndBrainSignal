@@ -13,7 +13,7 @@ export type WebglPlotCanvasHandle = {
   redraw: () => void
   /** Get the canvas element */
   getCanvas: () => HTMLCanvasElement | null
-  
+
   updateData: (channeldata: number[]) => void // <-- ADD THIS
 
 }
@@ -27,7 +27,7 @@ function hexToColorRGBA(hex: string): ColorRGBA {
 
 // Define the Props type
 type Props = {
- 
+
   channels: number[]
   colors: Record<number, string>
   counter: number
@@ -52,22 +52,22 @@ const WebglPlotCanvas = forwardRef<WebglPlotCanvasHandle, Props>(
           const line = linesRef.current[ch];
           const n = line?.numPoints ?? 0;
           if (!line || n === 0) return;
-    
+
           const idx = sweepRef.current;
 
           const val = channeldata[1]; // Adjust if your data format is different
-    
+
           line.setY(idx, val);
-    
+
           sweepRef.current = (idx + 1) % n;
-    
+
           wglpRef.current?.update();
         }
       }),
       [channels] // should depend on channels
     )
-    
-    
+
+
     // 1) ResizeObserver effect to match container size
     useEffect(() => {
       const canvas = canvasRef.current!
@@ -98,19 +98,19 @@ const WebglPlotCanvas = forwardRef<WebglPlotCanvasHandle, Props>(
       wglpRef.current = wglp
       linesRef.current = {}
 
-      channels.forEach((ch:number) => {
+      channels.forEach((ch: number) => {
         const line = new WebglLine(hexToColorRGBA(colors[ch]), 2000)
         line.lineSpaceX(-1, 2 / 2000)
-      
+
         // **NEW**: mark every sample as “no data”:
         for (let i = 0; i < line.numPoints; i++) {
           line.setY(i, NaN)
         }
-      
+
         linesRef.current[ch] = line
         wglp.addLine(line)
       })
-      
+
       wglp.update()
       sweepRef.current = 0
 
