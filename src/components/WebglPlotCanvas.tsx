@@ -13,12 +13,18 @@ type Props = {
   counter: number[];
 }
 
-function hexToColorRGBA(hex: string): ColorRGBA {
-  const r = parseInt(hex.slice(1, 3), 16) / 255
-  const g = parseInt(hex.slice(3, 5), 16) / 255
-  const b = parseInt(hex.slice(5, 7), 16) / 255
-  return new ColorRGBA(r, g, b, 1)
-}
+const hexToColorRGBA = (hex: string): ColorRGBA => {
+  if (!hex || hex.length !== 7) {
+    console.warn("Invalid hex color:", hex);
+    hex = "#000000"; // Fallback to black
+  }
+
+  const r = parseInt(hex.slice(1, 3), 16) / 255;
+  const g = parseInt(hex.slice(3, 5), 16) / 255;
+  const b = parseInt(hex.slice(5, 7), 16) / 255;
+  const a = 1.0; // Fully opaque
+  return { r, g, b, a };
+};
 
 export default function WebglPlotCanvas({ data, channels, colors, counter }: Props) {
   const canvasRef = useRef<HTMLCanvasElement>(null)

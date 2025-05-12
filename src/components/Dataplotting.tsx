@@ -14,7 +14,7 @@ import { useBleStream } from '../components/Bledata';
 import WebglPlotCanvas from '../components/WebglPlotCanvas';
 
 // For single-channel EEG we’ll use key 'ch0'
-const EEG_CHANNELS = ['ch0', 'ch2']
+const EEG_CHANNELS = ['ch0', 'ch1']
 // ECG data entries are already objects with ch2 & ch3
 const ECG_CHANNELS = ['ch2']
 
@@ -37,8 +37,7 @@ export default function SignalVisualizer() {
         connected,
         streaming,
         connect,
-        start,
-        stop,
+        // stop,
         disconnect,
         bandPower,
     } = useBleStream();
@@ -115,21 +114,8 @@ export default function SignalVisualizer() {
                                 >
                                     {connected ? 'Connected' : 'Connect'}
                                 </button>
-                                <button
-                                    onClick={start}
-                                    disabled={!connected || streaming}
-                                    className={`px-3 py-1 rounded-full transition-all duration-300 text-white ${streaming ? 'bg-[#9A7197]' : 'bg-[#C29963]'
-                                        }`}
-                                >
-                                    {streaming ? 'Streaming' : 'Start'}
-                                </button>
-                                <button
-                                    onClick={stop}
-                                    disabled={!streaming}
-                                    className="px-3 py-1 bg-[#CA8A73] rounded-full transition-all duration-300 text-white"
-                                >
-                                    Stop
-                                </button>
+
+
                                 <button
                                     onClick={disconnect}
                                     disabled={!connected}
@@ -277,7 +263,7 @@ export default function SignalVisualizer() {
                             <div className={`h-64 max-h-[300px] rounded-xl overflow-hidden p-2 transition-colors duration-300  ${darkMode ? 'bg-zinc-800/90' : 'bg-white'}`}>
 
                                 <WebglPlotCanvas
-                                    data={ecgBuffer}
+                                    data={eegBuffer}
                                     channels={EEG_CHANNELS}
                                     colors={CHANNEL_COLORS}
                                     counter={counters}

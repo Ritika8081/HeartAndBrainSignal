@@ -27,54 +27,56 @@ const ALPHA_RANGE: [number, number] = [8, 12];
 const BETA_RANGE: [number, number] = [12, 30];
 const GAMMA_RANGE: [number, number] = [30, 45];
 const ZZZ: number[] = []
+
+
 // --- React hook: useBleStream ---
 export function useBleStream() {
 
-  useEffect(() => {
-    const SAMPLE_RATE = 500;         // Hz
-    const CHUNK_SECONDS = 10;
-    const CHUNK_SIZE = SAMPLE_RATE * CHUNK_SECONDS; // 5000
+  // useEffect(() => {
+  //   const SAMPLE_RATE = 500;         // Hz
+  //   const CHUNK_SECONDS = 10;
+  //   const CHUNK_SIZE = SAMPLE_RATE * CHUNK_SECONDS; // 5000
 
-    const interval = setInterval(() => {
-      const ctrs = counterLog.current;
-      const ecgs = ecgLog.current;
-      const chunks = Math.floor(ctrs.length / CHUNK_SIZE);
-      for (let i = 0; i < chunks; i++) {
-        const start = i * CHUNK_SIZE;
-        const end = start + CHUNK_SIZE;
-        const sliceCtr = ctrs.slice(start, end);
-        const sliceEcg = ecgs.slice(start, end);
-        // build CSV text
-        const lines = ['counter,ecg'];
-        for (let j = 0; j < CHUNK_SIZE; j++) {
-          lines.push(`${sliceCtr[j]},${sliceEcg[j]}`);
-          ZZZ.push(sliceCtr[j]);
-        }
+  //   const interval = setInterval(() => {
+  //     const ctrs = counterLog.current;
+  //     const ecgs = ecgLog.current;
+  //     const chunks = Math.floor(ctrs.length / CHUNK_SIZE);
+  //     for (let i = 0; i < chunks; i++) {
+  //       const start = i * CHUNK_SIZE;
+  //       const end = start + CHUNK_SIZE;
+  //       const sliceCtr = ctrs.slice(start, end);
+  //       const sliceEcg = ecgs.slice(start, end);
+  //       // build CSV text
+  //       const lines = ['counter,ecg'];
+  //       for (let j = 0; j < CHUNK_SIZE; j++) {
+  //         lines.push(`${sliceCtr[j]},${sliceEcg[j]}`);
+  //         ZZZ.push(sliceCtr[j]);
+  //       }
 
-        const csv = lines.join('\n');
+  //       const csv = lines.join('\n');
 
-        // trigger download
-        const blob = new Blob([csv], { type: 'text/csv' });
-        const url = URL.createObjectURL(blob);
-        const a = document.createElement('a');
-        a.href = url;
-        a.download = `ecg_${i + 1}.csv`;
-        document.body.appendChild(a);
-        a.click();
-        document.body.removeChild(a);
-        URL.revokeObjectURL(url);
-      }
-      console.log(ZZZ, "ZZZ");
-      // remove the chunks we've just downloaded:
-      if (chunks > 0) {
-        counterLog.current.splice(0, chunks * CHUNK_SIZE);
-        ecgLog.current.splice(0, chunks * CHUNK_SIZE);
-      }
-    }, CHUNK_SECONDS * 1000);
+  //       // trigger download
+  //       const blob = new Blob([csv], { type: 'text/csv' });
+  //       const url = URL.createObjectURL(blob);
+  //       const a = document.createElement('a');
+  //       a.href = url;
+  //       a.download = `ecg_${i + 1}.csv`;
+  //       document.body.appendChild(a);
+  //       a.click();
+  //       document.body.removeChild(a);
+  //       URL.revokeObjectURL(url);
+  //     }
+  //     console.log(ZZZ, "ZZZ");
+  //     // remove the chunks we've just downloaded:
+  //     if (chunks > 0) {
+  //       counterLog.current.splice(0, chunks * CHUNK_SIZE);
+  //       ecgLog.current.splice(0, chunks * CHUNK_SIZE);
+  //     }
+  //   }, CHUNK_SECONDS * 1000);
 
-    return () => clearInterval(interval);
-  }, []);
-  
+  //   return () => clearInterval(interval);
+  // }, []);
+
   // State for raw data arrays (capped at MAX_POINTS for performance)
   const [eegData, setEegData] = useState<number[]>([]);          // Filtered EEG values
   const [ecgData, setEcgData] = useState<ECGDataEntry[]>([]);     // ECG entries with timestamp
@@ -209,7 +211,6 @@ export function useBleStream() {
     }
 
 
-
     // Limit history arrays to MAX_POINTS to avoid memory bloat
 
     const MAX_POINTS = 500;
@@ -233,47 +234,124 @@ export function useBleStream() {
     });
   };
 
-  // --- BLE connection lifecycle functions ---
+  // --- BLE connection, streaming, and cleanup ---
+  type WebglPlotCanvasHandle = {
+    clear?: () => void;
+    reset?: () => void;
+  };
+
+  const plotRef = useRef<WebglPlotCanvasHandle>(null);
+
+  // Clear the plot canvas data
+  const clearCanvas = () => {
+    if (plotRef.current?.clear) {
+      try {
+        plotRef.current.clear();
+      } catch (err) {
+        console.warn('Canvas clear failed:', err);
+      }
+    } else if (plotRef.current?.reset) {
+      try {
+        plotRef.current.reset();
+      } catch (err) {
+        console.warn('Canvas reset failed:', err);
+      }
+    }
+  };
+
+  // Effect: whenever we disconnect, clear the canvas
+  useEffect(() => {
+    if (!connected) {
+      clearCanvas();
+    }
+  }, [connected]);
+
+  // Start connection and streaming in one go
   const connect = async () => {
-    // Prompt user to select a BLE device matching 'NPG' prefix
-    const device = await navigator.bluetooth.requestDevice({
-      filters: [{ namePrefix: 'NPG' }],
-      optionalServices: [SERVICE_UUID],
-    });
-    deviceRef.current = device;
-    const server = await device.gatt!.connect();
-    const svc = await server.getPrimaryService(SERVICE_UUID);
-    controlRef.current = await svc.getCharacteristic(CONTROL_CHAR_UUID);
-    dataRef.current = await svc.getCharacteristic(DATA_CHAR_UUID);
-    setConnected(true);  // Update connection state
+    try {
+      const device = await navigator.bluetooth.requestDevice({
+        filters: [{ namePrefix: 'NPG' }],
+        optionalServices: [SERVICE_UUID],
+      });
+      deviceRef.current = device;
+
+      const server = await device.gatt!.connect();
+      const svc = await server.getPrimaryService(SERVICE_UUID);
+      controlRef.current = await svc.getCharacteristic(CONTROL_CHAR_UUID);
+      dataRef.current = await svc.getCharacteristic(DATA_CHAR_UUID);
+      setConnected(true);
+
+      // Start streaming immediately
+      await controlRef.current.writeValue(new TextEncoder().encode('START'));
+      await dataRef.current.startNotifications();
+      dataRef.current.addEventListener('characteristicvaluechanged', handleNotification);
+      setStreaming(true);
+    } catch (error) {
+      console.error('Connection/Streaming error:', error);
+      setConnected(false);
+      setStreaming(false);
+    }
   };
 
-  const start = async () => {
-    // Send 'START' command and enable notifications
-    if (!controlRef.current || !dataRef.current) return;
-    await controlRef.current.writeValue(new TextEncoder().encode('START'));
-    await dataRef.current.startNotifications();
-    dataRef.current.addEventListener('characteristicvaluechanged', handleNotification);
-    setStreaming(true);
-  };
-
+  // Stop notifications and streaming
   const stop = async () => {
-    // Disable notifications and update streaming flag
-    if (!dataRef.current) return;
-    await dataRef.current.stopNotifications();
-    dataRef.current.removeEventListener('characteristicvaluechanged', handleNotification);
+    dataRef.current?.removeEventListener('characteristicvaluechanged', handleNotification);
+
+    try {
+      if (dataRef.current?.service.device.gatt?.connected) {
+        await dataRef.current.stopNotifications();
+      }
+    } catch (err) {
+      console.warn('stopNotifications failed:', err);
+    }
+
+    try {
+      if (controlRef.current?.service.device.gatt?.connected) {
+        await controlRef.current.writeValue(new TextEncoder().encode('STOP'));
+      }
+    } catch (err) {
+      console.warn('write STOP failed:', err);
+    }
+
     setStreaming(false);
   };
 
-  const disconnect = () => {
-    // Stop streaming and disconnect BLE device
-    stop();
-    deviceRef.current?.gatt?.disconnect();
+  // Disconnect and clean up everything
+  const disconnect = async () => {
+    if (streaming) {
+      await stop();
+    }
+
+    try {
+      if (deviceRef.current?.gatt?.connected) {
+        deviceRef.current.gatt.disconnect();
+      }
+    } catch (err) {
+      console.warn('BLE disconnect failed:', err);
+    }
+
+    // State update triggers clearCanvas via effect
+    setStreaming(false);
     setConnected(false);
   };
 
-  // Automatically disconnect on unmount
-  useEffect(() => () => disconnect(), []);
+  // Handle unexpected disconnections
+  useEffect(() => {
+    const device = deviceRef.current;
+    const onDisconnect = () => {
+      console.warn('Device unexpectedly disconnected.');
+      setConnected(false);
+      setStreaming(false);
+    };
+
+    device?.addEventListener('gattserverdisconnected', onDisconnect);
+    return () => {
+      device?.removeEventListener('gattserverdisconnected', onDisconnect);
+      disconnect();
+    };
+  }, []);
+
+
 
   // Return state and control methods to component
   return {
@@ -284,7 +362,6 @@ export function useBleStream() {
     connected,
     streaming,
     connect,
-    start,
     stop,
     disconnect,
     bandPower,
