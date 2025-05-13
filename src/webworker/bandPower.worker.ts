@@ -1,5 +1,3 @@
-// src/webworker/bandPower.worker.ts
-
 import { FFT } from '@/lib/fft';
 
 // Frequency band definitions (Hz)
@@ -7,31 +5,67 @@ const BANDS: Record<string, [number, number]> = {
   delta: [0.5, 4],
   theta: [4, 8],
   alpha: [8, 12],
-  beta: [12, 30],
+  beta:  [12, 30],
   gamma: [30, 45],
 };
 
-/**
- * Calculate band power by summing squared magnitudes within a frequency range.
- */
+// Simple sliding‐window smoother, just like on the main thread
+class BandSmoother {
+  private bufferSize: number;
+  private buffers: Record<string, number[]>;
+  private sums: Record<string, number>;
+  private idx = 0;
+
+  constructor(bufferSize: number) {
+    this.bufferSize = bufferSize;
+    this.buffers  = {};
+    this.sums     = {};
+    for (const band of Object.keys(BANDS)) {
+      this.buffers[band] = new Array(bufferSize).fill(0);
+      this.sums[band]    = 0;
+    }
+  }
+
+  updateAll(vals: Record<string, number>) {
+    for (const b of Object.keys(vals)) {
+      const old = this.buffers[b][this.idx];
+      this.sums[b] -= old;
+      this.sums[b] += vals[b];
+      this.buffers[b][this.idx] = vals[b];
+    }
+    this.idx = (this.idx + 1) % this.bufferSize;
+  }
+
+  getAll(): Record<string, number> {
+    const out: Record<string, number> = {};
+    for (const b of Object.keys(this.sums)) {
+      out[b] = this.sums[b] / this.bufferSize;
+    }
+    return out;
+  }
+}
+
+// band‐power calc (unchanged)
 function calculateBandPower(
   mags: Float32Array,
-  freqRange: [number, number],
+  [f1, f2]: [number, number],
   sampleRate = 500,
-  fftSize = 256
+  fftSize    = 256
 ): number {
-  const res = sampleRate / fftSize;
-  const [f1, f2] = freqRange;
+  const res   = sampleRate / fftSize;
   const start = Math.max(1, Math.floor(f1 / res));
-  const end = Math.min(mags.length - 1, Math.floor(f2 / res));
-  let p = 0;
+  const end   = Math.min(mags.length - 1, Math.floor(f2 / res));
+  let   p     = 0;
   for (let i = start; i <= end; i++) {
     p += mags[i] * mags[i];
   }
   return p;
 }
 
-// Worker context uses 'self'
+// one smoother per channel
+const smoother0 = new BandSmoother(128);
+const smoother1 = new BandSmoother(128);
+
 self.onmessage = (e: MessageEvent<{
   eeg0: number[];
   eeg1: number[];
@@ -40,23 +74,40 @@ self.onmessage = (e: MessageEvent<{
 }>) => {
   const { eeg0, eeg1, sampleRate, fftSize } = e.data;
 
-  // Initialize FFT instances
+  // run FFT
   const fft0 = new FFT(fftSize);
   const fft1 = new FFT(fftSize);
-
-  // Compute magnitude spectra
   const mags0 = fft0.computeMagnitudes(new Float32Array(eeg0));
   const mags1 = fft1.computeMagnitudes(new Float32Array(eeg1));
 
-  // Calculate band power for each channel and each band
-  const bandPower0: Record<string, number> = {};
-  const bandPower1: Record<string, number> = {};
-
+  // raw band-power
+  const raw0: Record<string, number> = {};
+  const raw1: Record<string, number> = {};
   for (const [band, range] of Object.entries(BANDS)) {
-    bandPower0[band] = calculateBandPower(mags0, range, sampleRate, fftSize);
-    bandPower1[band] = calculateBandPower(mags1, range, sampleRate, fftSize);
+    raw0[band] = calculateBandPower(mags0, range, sampleRate, fftSize);
+    raw1[band] = calculateBandPower(mags1, range, sampleRate, fftSize);
   }
 
-  // Post results back to main thread
-  self.postMessage({ bandPower0, bandPower1 });
+  // compute total power for relative
+  const total0 = Object.values(raw0).reduce((a, b) => a + b, 0);
+  const total1 = Object.values(raw1).reduce((a, b) => a + b, 0);
+
+  // instantaneous relative power
+  const rel0: Record<string, number> = {};
+  const rel1: Record<string, number> = {};
+  for (const band of Object.keys(BANDS)) {
+    rel0[band] = total0 > 0 ? raw0[band] / total0 : 0;
+    rel1[band] = total1 > 0 ? raw1[band] / total1 : 0;
+  }
+
+  // update smoothers
+  smoother0.updateAll(rel0);
+  smoother1.updateAll(rel1);
+
+  // pull out smoothed values
+  const smooth0 = smoother0.getAll();
+  const smooth1 = smoother1.getAll();
+
+  // send back smoothed, relative band powers
+  self.postMessage({ smooth0, smooth1 });
 };

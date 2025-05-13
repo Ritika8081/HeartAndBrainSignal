@@ -14,14 +14,12 @@ import { useBleStream } from '../components/Bledata';
 import WebglPlotCanvas from '../components/WebglPlotCanvas';
 
 
-
 const CHANNEL_COLORS: Record<string, string> = {
     ch0: '#C29963',  // EEG channel 0
     ch1: '#63A2C2',  // EEG channel 1  
     ch2: '#E4967E',  // ECG channel 1
 
 }
-
 
 export default function SignalVisualizer() {
 
@@ -36,17 +34,14 @@ export default function SignalVisualizer() {
     const radarDataCh1Ref = useRef<{ subject: string; value: number }[]>([]);
     const workerRef = useRef<Worker | null>(null);
     const dataProcessorWorkerRef = useRef<Worker | null>(null);
-    const [processedData, setProcessedData] = useState<{
-        eeg0: number;
-        eeg1: number;
-        ecg: number;
-        counter: number;
-    } | null>(null);
-
+    // 1) Create refs for each display element
+    const currentRef = useRef<HTMLDivElement>(null)
+    const highRef = useRef<HTMLDivElement>(null)
+    const lowRef = useRef<HTMLDivElement>(null)
+    const avgRef = useRef<HTMLDivElement>(null)
     let previousCounter: number | null = null; // Variable to store the previous counter value for loss detection
+    const bpmWorkerRef = useRef<Worker | null>(null)
 
-
-    // 1. Remove the direct canvas updates from `datastream`
     const datastream = useCallback((data: number[]) => {
         // Only send raw data to worker (no direct canvas updates)
         dataProcessorWorkerRef.current?.postMessage({
@@ -66,6 +61,30 @@ export default function SignalVisualizer() {
         previousCounter = data[0];
     }, []);
 
+
+
+    const {
+        counters,
+        connected,
+        connect,
+        disconnect,
+    } = useBleStream(datastream);
+
+
+    const channelColors: Record<string, string> = {
+        ch0: '#C29963',
+        ch1: '#548687',
+        ch2: '#9A7197'
+    };
+
+    // inside your component, before the return:
+    const bandData = [
+        { subject: 'Delta', value: 0 },
+        { subject: 'Theta', value: 0 },
+        { subject: 'Alpha', value: 0 },
+        { subject: 'Beta', value: 0 },
+        { subject: 'Gamma', value: 0 },
+    ];
     // 2. Let the worker's onmessage handle ALL visualization updates
     useEffect(() => {
         const worker = new Worker(
@@ -84,65 +103,27 @@ export default function SignalVisualizer() {
         dataProcessorWorkerRef.current = worker;
         return () => worker.terminate();
     }, []);
-    const {
-        counters,
-        bpm,
-        connected,
-        streaming,
-        connect,
-        start,
-        stop,
-        disconnect,
-    } = useBleStream(datastream);
-    let highBPM = 0;
-    let lowBPM = 0;
-    let avgBPM = 0;
 
-
-    const channelColors: Record<string, string> = {
-        ch0: '#C29963',
-        ch1: '#548687',
-        ch2: '#9A7197'
-    };
-
-    // inside your component, before the return:
-    const bandData = [
-        { subject: 'Delta', value: 0 },
-        { subject: 'Theta', value: 0 },
-        { subject: 'Alpha', value: 0 },
-        { subject: 'Beta', value: 0 },
-        { subject: 'Gamma', value: 0 },
-    ];
-
-    // 2) Worker instantiation & message handling
     useEffect(() => {
-        workerRef.current = new Worker(
+        const w = new Worker(
             new URL('../webworker/bandPower.worker.ts', import.meta.url),
             { type: 'module' }
         );
-        workerRef.current.onmessage = (e) => {
-            const { bandPower0, bandPower1 } = e.data;
-            // Build the radar-chart data arrays
-            radarDataCh0Ref.current = [
-                { subject: 'Delta', value: bandPower0.delta },
-                { subject: 'Theta', value: bandPower0.theta },
-                { subject: 'Alpha', value: bandPower0.alpha },
-                { subject: 'Beta', value: bandPower0.beta },
-                { subject: 'Gamma', value: bandPower0.gamma },
-            ];
-            radarDataCh1Ref.current = [
-                { subject: 'Delta', value: bandPower1.delta },
-                { subject: 'Theta', value: bandPower1.theta },
-                { subject: 'Alpha', value: bandPower1.alpha },
-                { subject: 'Beta', value: bandPower1.beta },
-                { subject: 'Gamma', value: bandPower1.gamma },
-            ];
-            setTick((t) => t + 1);    // force re-render so charts update
+        w.onmessage = (e: MessageEvent<{ smooth0: Record<string, number>; smooth1: Record<string, number> }>) => {
+            const { smooth0, smooth1 } = e.data;
+
+            radarDataCh0Ref.current = Object.entries(smooth0).map(([subject, value]) => ({ subject: capitalize(subject), value }));
+
+            function capitalize(str: string): string {
+                return str.charAt(0).toUpperCase() + str.slice(1);
+            }
+            radarDataCh1Ref.current = Object.entries(smooth1).map(([subject, value]) => ({ subject: capitalize(subject), value }));
+            setTick(t => t + 1);
         };
-        return () => { workerRef.current?.terminate(); };
+        workerRef.current = w;
+        return () => { w.terminate(); };
     }, []);
 
-    // 3) On each new EEG sample, buffer and send to worker
     const onNewSample = useCallback((eeg0: number, eeg1: number) => {
         buf0Ref.current.push(eeg0);
         buf1Ref.current.push(eeg1);
@@ -151,14 +132,98 @@ export default function SignalVisualizer() {
 
         if (buf0Ref.current.length === 256) {
             workerRef.current?.postMessage({
-                eeg0: [...buf0Ref.current],
-                eeg1: [...buf1Ref.current],
+                eeg0: buf0Ref.current,
+                eeg1: buf1Ref.current,
                 sampleRate: 500,
                 fftSize: 256,
             });
         }
     }, []);
 
+
+
+    // --- 3) onNewECG: buffer ECG and every 500 samples (1 s) send to BPM worker ---
+    const ecgBufRef = useRef<number[]>([]);
+
+    const onNewECG = useCallback((ecg: number) => {
+        ecgBufRef.current.push(ecg);
+        // keep last 5 s @500 Hz = 2500 samples
+        if (ecgBufRef.current.length > 2500) {
+            ecgBufRef.current.shift();
+        }
+        // every full second → 500 new samples
+        if (ecgBufRef.current.length % 500 === 0) {
+            bpmWorkerRef.current?.postMessage({
+                ecgBuffer: [...ecgBufRef.current],
+                sampleRate: 500,
+            });
+        }
+    }, []);
+
+
+    // --- 4) BPM worker: smooth & display BPM, high/low/avg, (optionally) peaks ---
+    useEffect(() => {
+        const worker = new Worker(
+            new URL('../webworker/bpm.worker.ts', import.meta.url),
+            { type: 'module' }
+        );
+
+        const bpmWindow: number[] = [];
+        const windowSize = 5;
+        let displayedBPM: number | null = null;
+        const maxChange = 2;
+
+        worker.onmessage = (e: MessageEvent<{
+            bpm: number | null;
+            high: number | null;
+            low: number | null;
+            avg: number | null;
+            peaks: number[];
+        }>) => {
+            const { bpm, high, low, avg, peaks } = e.data;
+
+            // — smooth current BPM —
+            if (bpm !== null) {
+                bpmWindow.push(bpm);
+                if (bpmWindow.length > windowSize) bpmWindow.shift();
+                const avgBPM = bpmWindow.reduce((a, b) => a + b, 0) / bpmWindow.length;
+                if (displayedBPM === null) displayedBPM = avgBPM;
+                else {
+                    const diff = avgBPM - displayedBPM;
+                    displayedBPM += Math.sign(diff) * Math.min(Math.abs(diff), maxChange);
+                }
+                currentRef.current!.textContent = `${Math.round(displayedBPM)}`;
+            } else {
+                bpmWindow.length = 0;
+                displayedBPM = null;
+                currentRef.current!.textContent = '--';
+            }
+
+            // — display high/low/avg —
+            highRef.current!.textContent = high !== null ? `${high}` : '--';
+            lowRef.current!.textContent = low !== null ? `${low}` : '--';
+            avgRef.current!.textContent = avg !== null ? `${avg}` : '--';
+        };
+
+        bpmWorkerRef.current = worker;
+        return () => {
+            worker.terminate();
+        };
+    }, []);
+
+    // 5) Hook into your existing dataProcessor worker
+    useEffect(() => {
+        const dp = dataProcessorWorkerRef.current!
+        const handler = (e: MessageEvent<any>) => {
+            if (e.data.type === 'processedData') {
+                const { eeg0, eeg1, ecg } = e.data.data
+                onNewSample(eeg0, eeg1)
+                onNewECG(ecg)
+            }
+        }
+        dp.addEventListener('message', handler)
+        return () => { dp.removeEventListener('message', handler) }
+    }, [onNewSample, onNewECG])
 
     const bgGradient = darkMode
         ? 'bg-gradient-to-b from-zinc-900 to-neutral-900'
@@ -200,26 +265,12 @@ export default function SignalVisualizer() {
                                     {connected ? 'Connected' : 'Connect'}
                                 </button>
                                 <button
-                                    onClick={start}
-                                    disabled={!connected || streaming}
-                                    className={`px-3 py-1 rounded-full transition-all duration-300 text-white ${streaming ? 'bg-[#9A7197]' : 'bg-[#C29963]'
-                                        }`}
-                                >
-                                    {streaming ? 'Streaming' : 'Start'}
-                                </button>
-                                <button
-                                    onClick={stop}
-                                    disabled={!streaming}
-                                    className="px-3 py-1 bg-[#CA8A73] rounded-full transition-all duration-300 text-white"
-                                >
-                                    Stop
-                                </button>
-                                <button
                                     onClick={disconnect}
                                     disabled={!connected}
-                                    className="px-3 py-1 bg-[#D9777B] rounded-full transition-all duration-300 text-white"
+                                    className={`px-3 py-1 rounded-full transition-all duration-300 text-white ${connected ? "bg-[#D9777B] hover:bg-[#C7696D]" : "bg-gray-400 cursor-not-allowed"
+                                        }`}
                                 >
-                                    Disconnect
+                                    {connected ? "Disconnect" : "Disconnected"}
                                 </button>
                             </div>
                         </div>
@@ -416,21 +467,17 @@ export default function SignalVisualizer() {
                         <div className={`rounded-xl shadow-md p-1 px-3 border ${cardBg} transition-colors duration-300 h-[40%]`}>
                             <h3 className={`text-base font-semibold mb-1 ${textPrimary}`}>Heart Rate Analysis</h3>
 
-                            <div className="flex items-center justify-between h-40 px-4">
-                                {/* Left Side: BPM Display */}
-                                <div className="flex items-center space-x-3">
-                                    <div className={`text-5xl font-bold ${secondaryAccent}`}>
-                                        99
-                                    </div>
-                                    <div className="text-sm font-medium self-end mb-1">BPM</div>
+                            <div className="flex items-center space-x-3">
+                                <div className={`text-5xl font-bold ${secondaryAccent}`} ref={currentRef}>
+                                    —{/* initial placeholder */}
                                 </div>
-
-                                {/* Right Side: High, Low, Avg Values */}
-                                <div className="text-right text-sm leading-6">
-                                    <div><span className="font-semibold">High:</span> {highBPM ?? '—'}</div>
-                                    <div><span className="font-semibold">Low:</span> {lowBPM ?? '—'}</div>
-                                    <div><span className="font-semibold">Avg:</span> {avgBPM ?? '—'}</div>
-                                </div>
+                                <div className="text-sm font-medium self-end mb-1">BPM</div>
+                            </div>
+                            {/* stats */}
+                            <div className="text-right text-sm leading-6">
+                                <div><span className="font-semibold">High:</span> <span ref={highRef}>—</span></div>
+                                <div><span className="font-semibold">Low:</span>  <span ref={lowRef}>—</span></div>
+                                <div><span className="font-semibold">Avg:</span>  <span ref={avgRef}>—</span></div>
                             </div>
                         </div>
                         {/* ECG Section */}

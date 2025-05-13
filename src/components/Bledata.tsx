@@ -13,21 +13,19 @@ const NEW_PACKET_LEN = SINGLE_SAMPLE_LEN * BLOCK_COUNT;
 
 export function useBleStream(datastreamCallback?: (data: number[]) => void) {
 
-  const workerRef = useRef<Worker | null>(null);
   const [connected, setConnected] = useState(false);
   const [streaming, setStreaming] = useState(false);
   const [counters, setCounters] = useState<number[]>([]);
-  const [bpm, setBpm] = useState<number | null>(null);
- 
- 
+
+
   const deviceRef = useRef<BluetoothDevice | null>(null);
   const controlRef = useRef<BluetoothRemoteGATTCharacteristic | null>(null);
   const dataRef = useRef<BluetoothRemoteGATTCharacteristic | null>(null);
-  
- 
+
+
   const processSample = useCallback((dataView: DataView) => {
     if (dataView.byteLength !== SINGLE_SAMPLE_LEN) return;
-    
+
     datastreamCallback?.([
       dataView.getUint8(0),      // counter
       dataView.getInt16(1, false), // raw0 (EEG 1)
@@ -64,6 +62,9 @@ export function useBleStream(datastreamCallback?: (data: number[]) => void) {
       controlRef.current = await svc.getCharacteristic(CONTROL_CHAR_UUID);
       dataRef.current = await svc.getCharacteristic(DATA_CHAR_UUID);
       setConnected(true);
+
+      // Automatically send START command after successful connection
+      await start();
     } catch (error) {
       console.error("Connection failed:", error);
     }
@@ -71,14 +72,18 @@ export function useBleStream(datastreamCallback?: (data: number[]) => void) {
 
   const start = async () => {
     if (!controlRef.current || !dataRef.current) return;
-    await controlRef.current.writeValue(new TextEncoder().encode('START'));
-    await dataRef.current.startNotifications();
-    dataRef.current.addEventListener('characteristicvaluechanged', handleNotification);
-    setStreaming(true);
+    try {
+      await controlRef.current.writeValue(new TextEncoder().encode('START'));
+      await dataRef.current.startNotifications();
+      dataRef.current.addEventListener('characteristicvaluechanged', handleNotification);
+      setStreaming(true);
+    } catch (error) {
+      console.error("Failed to start:", error);
+    }
   };
 
-   // Stop notifications and streaming
-   const stop = async () => {
+  // Stop notifications and streaming
+  const stop = async () => {
     dataRef.current?.removeEventListener('characteristicvaluechanged', handleNotification);
 
     try {
@@ -117,6 +122,7 @@ export function useBleStream(datastreamCallback?: (data: number[]) => void) {
     // State update triggers clearCanvas via effect
     setStreaming(false);
     setConnected(false);
+
   };
 
   // Handle unexpected disconnections
@@ -137,7 +143,6 @@ export function useBleStream(datastreamCallback?: (data: number[]) => void) {
 
   return {
     counters,
-    bpm,
     connected,
     streaming,
     connect,
@@ -145,5 +150,5 @@ export function useBleStream(datastreamCallback?: (data: number[]) => void) {
     stop,
     disconnect,
   };
-  
+
 }
