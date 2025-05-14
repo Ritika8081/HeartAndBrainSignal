@@ -9,7 +9,7 @@ import {
     PolarRadiusAxis,
     Radar,
 } from 'recharts';
-import { Activity, Brain, Settings, Heart, Box, Moon, Sun, } from 'lucide-react';
+import { Activity, Brain, Settings, Heart, Box, Moon, Sun, Info } from 'lucide-react';
 import { useBleStream } from '../components/Bledata';
 import WebglPlotCanvas from '../components/WebglPlotCanvas';
 
@@ -138,9 +138,7 @@ export default function SignalVisualizer() {
         }
     }, []);
 
-
-
-    // --- 3) onNewECG: buffer ECG and every 500 samples (1 s) send to BPM worker ---
+    // onNewECG: buffer ECG and every 500 samples (1 s) send to BPM worker ---
     const ecgBufRef = useRef<number[]>([]);
 
     const onNewECG = useCallback((ecg: number) => {
@@ -158,8 +156,7 @@ export default function SignalVisualizer() {
         }
     }, []);
 
-
-    // --- 4) BPM worker: smooth & display BPM, high/low/avg, (optionally) peaks ---
+    // BPM worker: smooth & display BPM, high/low/avg, (optionally) peaks ---
     useEffect(() => {
         const worker = new Worker(
             new URL('../webworker/bpm.worker.ts', import.meta.url),
@@ -237,7 +234,6 @@ export default function SignalVisualizer() {
     const axisColor = darkMode ? '#71717a' : '#78716c';
     const iconBoxBg = darkMode ? 'bg-amber-900/20' : 'bg-amber-50';
     const heartIconBoxBg = darkMode ? 'bg-rose-900/20' : 'bg-rose-50';
-    const valueHighlight = darkMode ? 'text-amber-200' : 'text-amber-700'; // Added for highlighted values
     const labelText = darkMode ? 'text-zinc-400' : 'text-stone-500'; // Added for labels
 
 
@@ -254,41 +250,37 @@ export default function SignalVisualizer() {
                             <span className={`${primaryAccent} font-medium ml-1`}>Medusa</span>
                         </h1>
                     </div>
-
-
                     <div className="flex items-center space-x-4">
-                        <div className="flex items-center space-x-4">
-                            <div className="flex space-x-2">
-                                <button
-                                    onClick={connect}
-                                    disabled={connected}
-                                    className={`px-3 py-1 rounded-full transition-all duration-300 text-white ${connected ? 'bg-[#548687]' : 'bg-[#7C9885]'
-                                        }`}
-                                >
-                                    {connected ? 'Connected' : 'Connect'}
-                                </button>
-                                <button
-                                    onClick={disconnect}
-                                    disabled={!connected}
-                                    className={`px-3 py-1 rounded-full transition-all duration-300 text-white ${connected ? "bg-[#D9777B] hover:bg-[#C7696D]" : "bg-gray-400 cursor-not-allowed"
-                                        }`}
-                                >
-                                    {connected ? "Disconnect" : "Disconnected"}
-                                </button>
-                            </div>
+                        <div className="flex space-x-2">
+                            <button
+                                onClick={connect}
+                                disabled={connected}
+                                className={`px-3 py-1 rounded-full transition-all duration-300 text-white ${connected ? 'bg-[#548687]' : 'bg-[#7C9885]'}`}
+                            >
+                                {connected ? 'Connected' : 'Connect'}
+                            </button>
+                            <button
+                                onClick={disconnect}
+                                disabled={!connected}
+                                className={`px-3 py-1 rounded-full transition-all duration-300 text-white ${connected ? 'bg-[#D9777B] hover:bg-[#C7696D]' : 'bg-gray-400 cursor-not-allowed'}`}
+                            >
+                                {connected ? 'Disconnect' : 'Disconnected'}
+                            </button>
                         </div>
 
                         <button
                             onClick={() => setDarkMode(!darkMode)}
-                            className={`p-1 rounded-full transition-all duration-300 ${darkMode
-                                ? 'bg-zinc-700 hover:bg-zinc-600 text-zinc-200'
-                                : 'bg-stone-200 hover:bg-stone-300 text-stone-700'
-                                } shadow-sm`}
+                            className={`p-1 rounded-full transition-all duration-300 ${darkMode ? 'bg-zinc-700 hover:bg-zinc-600 text-zinc-200' : 'bg-stone-200 hover:bg-stone-300 text-stone-700'} shadow-sm`}
                         >
-                            <Settings className="h-4 w-4" strokeWidth={2} />
+                            {darkMode ? <Sun className="h-4 w-4" strokeWidth={2} /> : <Moon className="h-4 w-4" strokeWidth={2} />}
+                        </button>
+
+                        <button
+                            className="p-1 rounded-full transition-all duration-300 bg-stone-200 hover:bg-stone-300 text-stone-700 shadow-sm"
+                        >
+                            <Info className="h-4 w-4" strokeWidth={2} />
                         </button>
                     </div>
-
                 </div>
             </header>
 
@@ -304,7 +296,6 @@ export default function SignalVisualizer() {
                                 <Box className={primaryAccent} strokeWidth={1.5} />
                             </div>
                         </div>
-
                         <div
                             className={`flex-1 rounded-xl shadow-md p-3 border ${cardBg} flex flex-col transition-colors duration-300`}
                         >
@@ -332,7 +323,7 @@ export default function SignalVisualizer() {
                     </div>
 
                     {/* Second Column (40%) - EEG */}
-                    <div className="md:col-span-2 flex flex-col gap-3">
+                    <div className="md:col-span-2 flex flex-col gap-2">
                         {/* EEG Row 1: Brain Image */}
                         <div
                             className={`rounded-xl shadow-md p-3 border ${cardBg} flex flex-col items-center justify-center transition-colors duration-300`}>
@@ -345,8 +336,6 @@ export default function SignalVisualizer() {
 
                         {/* EEG Row 2: Spider Plot */}
                         <div className={`flex flex-col rounded-xl shadow-md p-1 px-3 border ${cardBg} transition-colors duration-300 h-[40%]`}>
-
-
                             {/* Charts container */}
                             <div className="flex flex-row flex-1">
                                 {/* Left chart: Channel 0 */}
@@ -427,9 +416,8 @@ export default function SignalVisualizer() {
                             </div>
                         </div>
 
-
                         {/* EEG Row 3: EEG Chart */}
-                        <div className="md:col-span-2 flex flex-col gap-3 ">
+                        <div className="md:col-span-2 flex flex-col gap-2 ">
                             {/* Chart container */}
                             <div className={`h-30 max-h-[300px] rounded-xl overflow-hidden p-2 transition-colors duration-300  ${darkMode ? 'bg-zinc-800/90' : 'bg-white'}`}>
 
@@ -450,11 +438,10 @@ export default function SignalVisualizer() {
                                 />
                             </div>
                         </div>
-
                     </div>
 
                     {/* Third Column (40%) - ECG */}
-                    <div className="md:col-span-2 flex flex-col gap-3">
+                    <div className="md:col-span-2 flex flex-col gap-2">
                         {/* ECG Row 1: Heart Image */}
                         <div
                             className={`rounded-xl shadow-md p-3 border ${cardBg} flex flex-col items-center justify-center transition-colors duration-300 `}>
@@ -466,12 +453,10 @@ export default function SignalVisualizer() {
                         </div>
 
                         {/* ECG Row 2: BPM Info */}
-
-
                         <div className={`md:col-span-2 ${cardBg} rounded-xl shadow-lg px-4 border transition-colors duration-300 h-[40%] flex flex-col`}>
                             {/* BPM Header */}
                             <div className="flex items-center justify-between p-4">
-                                <div className="flex items-baseline pt-4">
+                                <div className="flex items-baseline pt-6">
                                     <span ref={currentRef} className={`text-6xl font-bold ${primaryAccent}`}>--</span>
                                     <span className={`ml-2 text-xl ${labelText}`}>BPM</span>
                                 </div>
@@ -482,7 +467,7 @@ export default function SignalVisualizer() {
                             </div>
 
                             {/* Stats at bottom */}
-                            <div className="mt-auto grid grid-cols-3 gap-4 pb-4">
+                            <div className="mt-auto grid grid-cols-3 gap-3 pb-4">
 
                                 {/* Low BPM */}
                                 <div className={`${statCardBg} rounded-lg p-2 transition-colors duration-300 flex flex-col items-center`}>
@@ -516,7 +501,7 @@ export default function SignalVisualizer() {
 
                         {/* ECG Section */}
                         <div className="md:col-span-2 flex flex-col gap-3">
-                            <div className={`h-63 max-h-[300px] rounded-xl overflow-hidden p-2 transition-colors duration-300  ${darkMode ? 'bg-zinc-800/90' : 'bg-white'}`}>
+                            <div className={`h-62 max-h-[300px] rounded-xl overflow-hidden p-2 transition-colors duration-300  ${darkMode ? 'bg-zinc-800/90' : 'bg-white'}`}>
 
                                 <WebglPlotCanvas
                                     ref={canvasecgRef}
