@@ -79,5 +79,5 @@ const computeBPMStats = (
 self.onmessage = (e: MessageEvent<BPMRequest>) => {
     const { ecgBuffer, sampleRate } = e.data;
     const resp = computeBPMStats(ecgBuffer, sampleRate);
-    (self as any).postMessage(resp);
+    (self).postMessage(resp);
 };
