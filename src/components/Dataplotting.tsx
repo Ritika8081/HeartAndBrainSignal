@@ -9,7 +9,7 @@ import {
     PolarRadiusAxis,
     Radar,
 } from 'recharts';
-import { Activity, Brain, Settings, Heart, Box } from 'lucide-react';
+import { Activity, Brain, Settings, Heart, Box, Moon, Sun, } from 'lucide-react';
 import { useBleStream } from '../components/Bledata';
 import WebglPlotCanvas from '../components/WebglPlotCanvas';
 
@@ -60,8 +60,6 @@ export default function SignalVisualizer() {
         }
         previousCounter = data[0];
     }, []);
-
-
 
     const {
         counters,
@@ -225,10 +223,12 @@ export default function SignalVisualizer() {
         return () => { dp.removeEventListener('message', handler) }
     }, [onNewSample, onNewECG])
 
+
     const bgGradient = darkMode
         ? 'bg-gradient-to-b from-zinc-900 to-neutral-900'
         : 'bg-gradient-to-b from-neutral-50 to-stone-100';
     const cardBg = darkMode ? 'bg-zinc-800/90 border-zinc-700/50' : 'bg-white/95 border-stone-200';
+    const statCardBg = darkMode ? 'bg-zinc-700/50' : 'bg-stone-100/80'; // Added statCardBg variable
     const primaryAccent = darkMode ? 'text-amber-300' : 'text-amber-600';
     const secondaryAccent = darkMode ? 'text-rose-300' : 'text-rose-500';
     const textPrimary = darkMode ? 'text-stone-300' : 'text-stone-800';
@@ -237,6 +237,9 @@ export default function SignalVisualizer() {
     const axisColor = darkMode ? '#71717a' : '#78716c';
     const iconBoxBg = darkMode ? 'bg-amber-900/20' : 'bg-amber-50';
     const heartIconBoxBg = darkMode ? 'bg-rose-900/20' : 'bg-rose-50';
+    const valueHighlight = darkMode ? 'text-amber-200' : 'text-amber-700'; // Added for highlighted values
+    const labelText = darkMode ? 'text-zinc-400' : 'text-stone-500'; // Added for labels
+
 
     return (
         <div className={`flex flex-col h-screen ${bgGradient} transition-colors duration-300`}>
@@ -342,8 +345,7 @@ export default function SignalVisualizer() {
 
                         {/* EEG Row 2: Spider Plot */}
                         <div className={`flex flex-col rounded-xl shadow-md p-1 px-3 border ${cardBg} transition-colors duration-300 h-[40%]`}>
-                            {/* Header */}
-                            <h3 className={`text-base font-semibold ${textPrimary}`}>Brainwave Distribution</h3>
+
 
                             {/* Charts container */}
                             <div className="flex flex-row flex-1">
@@ -455,7 +457,7 @@ export default function SignalVisualizer() {
                     <div className="md:col-span-2 flex flex-col gap-3">
                         {/* ECG Row 1: Heart Image */}
                         <div
-                            className={`rounded-xl shadow-md p-3 border ${cardBg} flex flex-col items-center justify-center transition-colors duration-300`}>
+                            className={`rounded-xl shadow-md p-3 border ${cardBg} flex flex-col items-center justify-center transition-colors duration-300 `}>
                             <div className={`p-3 rounded-full mb-1 ${heartIconBoxBg} transition-colors duration-300`}>
                                 <Heart className={secondaryAccent} strokeWidth={1.5} />
                             </div>
@@ -463,26 +465,58 @@ export default function SignalVisualizer() {
                             <p className={`text-xs ${textSecondary}`}>Electrocardiogram (ECG)</p>
                         </div>
 
-                        {/* ECG Row 2: BPM Info */}   {/* ECG Row 2: BPM Info */}
-                        <div className={`rounded-xl shadow-md p-1 px-3 border ${cardBg} transition-colors duration-300 h-[40%]`}>
-                            <h3 className={`text-base font-semibold mb-1 ${textPrimary}`}>Heart Rate Analysis</h3>
+                        {/* ECG Row 2: BPM Info */}
 
-                            <div className="flex items-center space-x-3">
-                                <div className={`text-5xl font-bold ${secondaryAccent}`} ref={currentRef}>
-                                    —{/* initial placeholder */}
+
+                        <div className={`md:col-span-2 ${cardBg} rounded-xl shadow-lg px-4 border transition-colors duration-300 h-[40%] flex flex-col`}>
+                            {/* BPM Header */}
+                            <div className="flex items-center justify-between p-4">
+                                <div className="flex items-baseline pt-4">
+                                    <span ref={currentRef} className={`text-6xl font-bold ${primaryAccent}`}>--</span>
+                                    <span className={`ml-2 text-xl ${labelText}`}>BPM</span>
                                 </div>
-                                <div className="text-sm font-medium self-end mb-1">BPM</div>
+                                <div className={`flex gap-3 items-center ${textSecondary} text-sm`}>
+                                    <Activity size={16} />
+                                    <span>Monitoring active</span>
+                                </div>
                             </div>
-                            {/* stats */}
-                            <div className="text-right text-sm leading-6">
-                                <div><span className="font-semibold">High:</span> <span ref={highRef}>—</span></div>
-                                <div><span className="font-semibold">Low:</span>  <span ref={lowRef}>—</span></div>
-                                <div><span className="font-semibold">Avg:</span>  <span ref={avgRef}>—</span></div>
+
+                            {/* Stats at bottom */}
+                            <div className="mt-auto grid grid-cols-3 gap-4 pb-4">
+
+                                {/* Low BPM */}
+                                <div className={`${statCardBg} rounded-lg p-2 transition-colors duration-300 flex flex-col items-center`}>
+                                    <div className={`text-sm ${labelText} mb-1`}>Lowest</div>
+                                    <div className="flex items-baseline">
+                                        <span ref={lowRef} className={`text-2xl font-semibold ${textPrimary}`}>--</span>
+                                        <span className={`ml-1 text-sm ${textSecondary}`}>BPM</span>
+                                    </div>
+                                </div>
+
+                                {/* Average BPM */}
+                                <div className={`${statCardBg} rounded-lg p-2  transition-colors duration-300 flex flex-col items-center`}>
+                                    <div className={`text-sm ${labelText} mb-1`}>Average</div>
+                                    <div className="flex items-baseline">
+                                        <span ref={avgRef} className={`text-2xl font-semibold ${secondaryAccent}`}>--</span>
+                                        <span className={`ml-1 text-sm ${textSecondary}`}>BPM</span>
+                                    </div>
+                                </div>
+
+                                {/* High BPM */}
+                                <div className={`${statCardBg} rounded-lg p-2  transition-colors duration-300 flex flex-col items-center`}>
+                                    <div className={`text-sm ${labelText} mb-1`}>Highest</div>
+                                    <div className="flex items-baseline">
+                                        <span ref={highRef} className={`text-2xl font-semibold ${primaryAccent}`}>--</span>
+                                        <span className={`ml-1 text-sm ${textSecondary}`}>BPM</span>
+                                    </div>
+                                </div>
                             </div>
+
                         </div>
+
                         {/* ECG Section */}
                         <div className="md:col-span-2 flex flex-col gap-3">
-                            <div className={`h-60 max-h-[300px] rounded-xl overflow-hidden p-2 transition-colors duration-300  ${darkMode ? 'bg-zinc-800/90' : 'bg-white'}`}>
+                            <div className={`h-63 max-h-[300px] rounded-xl overflow-hidden p-2 transition-colors duration-300  ${darkMode ? 'bg-zinc-800/90' : 'bg-white'}`}>
 
                                 <WebglPlotCanvas
                                     ref={canvasecgRef}
