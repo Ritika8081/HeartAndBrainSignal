@@ -9,9 +9,10 @@ import {
     PolarRadiusAxis,
     Radar,
 } from 'recharts';
-import { Activity, Brain, Settings, Heart, Box, Moon, Sun, Info } from 'lucide-react';
+import { Activity, Brain, Heart, Box, Moon, Sun } from 'lucide-react';
 import { useBleStream } from '../components/Bledata';
 import WebglPlotCanvas from '../components/WebglPlotCanvas';
+import Contributors from './Contributors';
 
 
 const CHANNEL_COLORS: Record<string, string> = {
@@ -27,7 +28,6 @@ export default function SignalVisualizer() {
     const canvaseeg1Ref = useRef<any>(null); // Create a ref for the Canvas component
     const canvaseeg2Ref = useRef<any>(null); // Create a ref for the Canvas component
     const canvasecgRef = useRef<any>(null); // Create a ref for the Canvas component
-    const [tick, setTick] = useState(0);
     const buf0Ref = useRef<number[]>([]);
     const buf1Ref = useRef<number[]>([]);
     const radarDataCh0Ref = useRef<{ subject: string; value: number }[]>([]);
@@ -41,6 +41,19 @@ export default function SignalVisualizer() {
     const avgRef = useRef<HTMLDivElement>(null)
     let previousCounter: number | null = null; // Variable to store the previous counter value for loss detection
     const bpmWorkerRef = useRef<Worker | null>(null)
+    // Animation state
+    const [isBeating, setIsBeating] = useState(false);
+
+    // Create beating heart animation effect
+    useEffect(() => {
+        const interval = setInterval(() => {
+            setIsBeating(true);
+            setTimeout(() => setIsBeating(false), 200);
+        }, 1000);
+
+        return () => clearInterval(interval);
+    }, []);
+
 
     const datastream = useCallback((data: number[]) => {
         // Only send raw data to worker (no direct canvas updates)
@@ -62,7 +75,6 @@ export default function SignalVisualizer() {
     }, []);
 
     const {
-        counters,
         connected,
         connect,
         disconnect,
@@ -116,7 +128,7 @@ export default function SignalVisualizer() {
                 return str.charAt(0).toUpperCase() + str.slice(1);
             }
             radarDataCh1Ref.current = Object.entries(smooth1).map(([subject, value]) => ({ subject: capitalize(subject), value }));
-            setTick(t => t + 1);
+
         };
         workerRef.current = w;
         return () => { w.terminate(); };
@@ -173,9 +185,8 @@ export default function SignalVisualizer() {
             high: number | null;
             low: number | null;
             avg: number | null;
-            peaks: number[];
         }>) => {
-            const { bpm, high, low, avg, peaks } = e.data;
+            const { bpm, high, low, avg } = e.data;
 
             // — smooth current BPM —
             if (bpm !== null) {
@@ -251,35 +262,15 @@ export default function SignalVisualizer() {
                         </h1>
                     </div>
                     <div className="flex items-center space-x-4">
-                        <div className="flex space-x-2">
-                            <button
-                                onClick={connect}
-                                disabled={connected}
-                                className={`px-3 py-1 rounded-full transition-all duration-300 text-white ${connected ? 'bg-[#548687]' : 'bg-[#7C9885]'}`}
-                            >
-                                {connected ? 'Connected' : 'Connect'}
-                            </button>
-                            <button
-                                onClick={disconnect}
-                                disabled={!connected}
-                                className={`px-3 py-1 rounded-full transition-all duration-300 text-white ${connected ? 'bg-[#D9777B] hover:bg-[#C7696D]' : 'bg-gray-400 cursor-not-allowed'}`}
-                            >
-                                {connected ? 'Disconnect' : 'Disconnected'}
-                            </button>
-                        </div>
 
                         <button
                             onClick={() => setDarkMode(!darkMode)}
                             className={`p-1 rounded-full transition-all duration-300 ${darkMode ? 'bg-zinc-700 hover:bg-zinc-600 text-zinc-200' : 'bg-stone-200 hover:bg-stone-300 text-stone-700'} shadow-sm`}
                         >
-                            {darkMode ? <Sun className="h-4 w-4" strokeWidth={2} /> : <Moon className="h-4 w-4" strokeWidth={2} />}
+                            {darkMode ? <Sun className="h-5 w-5" strokeWidth={2} /> : <Moon className="h-4 w-4" strokeWidth={2} />}
                         </button>
 
-                        <button
-                            className="p-1 rounded-full transition-all duration-300 bg-stone-200 hover:bg-stone-300 text-stone-700 shadow-sm"
-                        >
-                            <Info className="h-4 w-4" strokeWidth={2} />
-                        </button>
+                        <Contributors darkMode={darkMode} />
                     </div>
                 </div>
             </header>
@@ -288,12 +279,51 @@ export default function SignalVisualizer() {
                 <div className="grid grid-cols-1 md:grid-cols-5 gap-3 h-full">
                     {/* First Column (20%) - Device Info */}
                     <div className="md:col-span-1 flex flex-col h-full gap-3">
+
                         <div
-                            className={`flex-1 rounded-xl shadow-md p-3 border ${cardBg} flex flex-col items-center justify-center transition-colors duration-300`}
+                            className={`
+        flex-1
+        rounded-xl shadow-md p-3 border ${cardBg}
+        flex flex-col items-center transition-colors duration-300
+      `}
                         >
-                            {/* Icon box */}
-                            <div className={`p-3 rounded-full mb-2 ${iconBoxBg} transition-colors duration-300`}>
-                                <Box className={primaryAccent} strokeWidth={1.5} />
+                            {/* Buttons in a full-width row, aligned to end */}
+                            <div className="w-full flex justify-center mb-4">
+                                <button
+                                    onClick={connect}
+                                    disabled={connected}
+                                    className={`
+            px-3 py-1 rounded-full transition-all duration-300 text-white
+            ${connected ? "bg-[#548687]" : "bg-[#7C9885]"}
+          `}
+                                >
+                                    {connected ? "Connected" : "Connect"}
+                                </button>
+                                <button
+                                    onClick={disconnect}
+                                    disabled={!connected}
+                                    className={`
+            ml-2 px-3 py-1 rounded-full transition-all duration-300 text-white
+            ${connected
+                                            ? "bg-[#D9777B] hover:bg-[#C7696D]"
+                                            : "bg-gray-400 cursor-not-allowed"}
+          `}
+                                >
+                                    {connected ? "Disconnect" : "Disconnected"}
+                                </button>
+                            </div>
+
+                            {/* Main icon/content area */}
+                            <div className="flex-1 flex flex-col items-center justify-center w-full">
+                                <div
+                                    className={`
+            p-3 rounded-full mb-2 ${iconBoxBg}
+            transition-colors duration-300
+          `}
+                                >
+                                    <Box className={primaryAccent} strokeWidth={1.5} />
+                                </div>
+                                {/* ...other content */}
                             </div>
                         </div>
                         <div
@@ -425,7 +455,7 @@ export default function SignalVisualizer() {
                                     ref={canvaseeg1Ref}
                                     channels={[0]} // EEG Channel 0
                                     colors={{ 0: CHANNEL_COLORS.ch0 }}
-                                    counter={counters[0] ?? 0}
+
                                 />
                             </div>
                             <div className={`h-30 max-h-[300px] rounded-xl overflow-hidden p-2 transition-colors duration-300  ${darkMode ? 'bg-zinc-800/90' : 'bg-white'}`}>
@@ -434,7 +464,7 @@ export default function SignalVisualizer() {
                                     ref={canvaseeg2Ref}
                                     channels={[1]} // EEG Channel 1
                                     colors={{ 1: CHANNEL_COLORS.ch1 }}
-                                    counter={counters[0] ?? 0}
+
                                 />
                             </div>
                         </div>
@@ -443,13 +473,31 @@ export default function SignalVisualizer() {
                     {/* Third Column (40%) - ECG */}
                     <div className="md:col-span-2 flex flex-col gap-2">
                         {/* ECG Row 1: Heart Image */}
-                        <div
-                            className={`rounded-xl shadow-md p-3 border ${cardBg} flex flex-col items-center justify-center transition-colors duration-300 `}>
-                            <div className={`p-3 rounded-full mb-1 ${heartIconBoxBg} transition-colors duration-300`}>
-                                <Heart className={secondaryAccent} strokeWidth={1.5} />
+                        <div className={`rounded-xl shadow-md p-1  pt-2 border ${cardBg} flex flex-col items-center transition-colors duration-300 w-full h-[19%]`}>
+                            <div className={`p-2 rounded-full ${heartIconBoxBg} transition-all duration-300 ${isBeating ? 'scale-110' : 'scale-100'} mb-1`}>
+                                <Heart
+                                    className={`${secondaryAccent} ${isBeating ? 'scale-110' : 'scale-100'} transition-all duration-200`}
+                                    strokeWidth={1.5}
+                                    size={32}
+                                    fill={isBeating ? "currentColor" : "none"}
+                                />
                             </div>
-                            <h2 className={`text-lg font-semibold mb-0 ${textPrimary}`}>Heart Activity</h2>
-                            <p className={`text-xs ${textSecondary}`}>Electrocardiogram (ECG)</p>
+
+                            <div className="text-center pt-2">
+                                <h2 className={`text-lg font-semibold  ${textPrimary}`}>Heart Activity</h2>
+                                <p className={`text-xs ${textSecondary}`}>Electrocardiogram (ECG)</p>
+                            </div>
+
+                            <div className="mt-3 w-full flex justify-center">
+                                <div className="flex space-x-1">
+                                    {[1, 2, 3, 4, 5].map((dot, index) => (
+                                        <div
+                                            key={index}
+                                            className={`h-1 w-6 rounded-full ${secondaryAccent} opacity-${80 - index * 15}`}
+                                        />
+                                    ))}
+                                </div>
+                            </div>
                         </div>
 
                         {/* ECG Row 2: BPM Info */}
@@ -507,7 +555,7 @@ export default function SignalVisualizer() {
                                     ref={canvasecgRef}
                                     channels={[2]} // ECG Channel 2
                                     colors={{ 2: CHANNEL_COLORS.ch2 }}
-                                    counter={counters[0] ?? 0}
+
                                 />
                             </div>
                         </div>

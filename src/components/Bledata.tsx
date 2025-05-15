@@ -15,7 +15,6 @@ export function useBleStream(datastreamCallback?: (data: number[]) => void) {
 
   const [connected, setConnected] = useState(false);
   const [streaming, setStreaming] = useState(false);
-  const [counters, setCounters] = useState<number[]>([]);
 
 
   const deviceRef = useRef<BluetoothDevice | null>(null);
@@ -142,13 +141,13 @@ export function useBleStream(datastreamCallback?: (data: number[]) => void) {
   }, []);
 
   return {
-    counters,
     connected,
     streaming,
     connect,
     start,
     stop,
     disconnect,
+
   };
 
 }

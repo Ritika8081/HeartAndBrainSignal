@@ -30,11 +30,11 @@ type Props = {
 
   channels: number[]
   colors: Record<number, string>
-  counter: number
+ 
 }
 
 const WebglPlotCanvas = forwardRef<WebglPlotCanvasHandle, Props>(
-  ({ channels, colors, counter }, ref) => {
+  ({ channels, colors}, ref) => {
     const canvasRef = useRef<HTMLCanvasElement>(null)
     const wglpRef = useRef<WebglPlot | null>(null)
     const linesRef = useRef<Record<string, WebglLine>>({})
