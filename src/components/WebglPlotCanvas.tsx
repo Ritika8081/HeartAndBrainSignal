@@ -14,7 +14,7 @@ export type WebglPlotCanvasHandle = {
   /** Get the canvas element */
   getCanvas: () => HTMLCanvasElement | null
 
-  updateData: (channeldata: number[]) => void // <-- ADD THIS
+  updateData: (channeldata: number[]) => void 
 
 }
 
@@ -33,8 +33,8 @@ type Props = {
  
 }
 
-const WebglPlotCanvas = forwardRef<WebglPlotCanvasHandle, Props>(
-  ({ channels, colors}, ref) => {
+ const WebglPlotCanvas = forwardRef<WebglPlotCanvasHandle, Props>(
+  ({ channels, colors }, ref) => {
     const canvasRef = useRef<HTMLCanvasElement>(null)
     const wglpRef = useRef<WebglPlot | null>(null)
     const linesRef = useRef<Record<string, WebglLine>>({})

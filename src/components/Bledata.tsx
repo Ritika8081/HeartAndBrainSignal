@@ -16,7 +16,6 @@ export function useBleStream(datastreamCallback?: (data: number[]) => void) {
   const [connected, setConnected] = useState(false);
   const [streaming, setStreaming] = useState(false);
 
-
   const deviceRef = useRef<BluetoothDevice | null>(null);
   const controlRef = useRef<BluetoothRemoteGATTCharacteristic | null>(null);
   const dataRef = useRef<BluetoothRemoteGATTCharacteristic | null>(null);
