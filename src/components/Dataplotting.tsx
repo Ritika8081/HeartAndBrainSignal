@@ -14,6 +14,8 @@ import { useBleStream } from '../components/Bledata';
 import WebglPlotCanvas from '../components/WebglPlotCanvas';
 import Contributors from './Contributors';
 import { WebglPlotCanvasHandle } from "../components/WebglPlotCanvas";
+// First, import the BpmTimelineChart component at the top of your file:
+import BpmTimelineChart from '../components/BpmPlot'
 
 const CHANNEL_COLORS: Record<string, string> = {
     ch0: "#C29963", // EEG channel 0
@@ -253,10 +255,11 @@ export default function SignalVisualizer() {
     const labelText = darkMode ? "text-zinc-400" : "text-stone-500"; // Added for labels
 
     return (
-        <div className={`flex flex-col h-screen ${bgGradient} transition-colors duration-300`}>
+        <div className={`flex flex-col min-h-screen h-screen ${bgGradient} transition-colors duration-300`}>
+            {/* Header - Keep as is */}
             <header className={`${darkMode
                 ? 'bg-zinc-900/90 backdrop-blur-sm border-b border-amber-900/20'
-                : 'bg-white/90 backdrop-blur-sm border-b border-amber-100'} shadow-lg p-2 transition-colors duration-300`}>
+                : 'bg-white/90 backdrop-blur-sm border-b border-amber-100'} shadow-lg p-2 transition-colors duration-300 flex-shrink-0`}>
                 <div className="container mx-auto flex justify-between items-center">
                     <div className="flex items-center space-x-3">
                         <Activity className={primaryAccent} />
@@ -266,77 +269,55 @@ export default function SignalVisualizer() {
                         </h1>
                     </div>
                     <div className="flex items-center space-x-4">
-
                         <button
                             onClick={() => setDarkMode(!darkMode)}
                             className={`p-1 rounded-full transition-all duration-300 ${darkMode ? 'bg-zinc-700 hover:bg-zinc-600 text-zinc-200' : 'bg-stone-200 hover:bg-stone-300 text-stone-700'} shadow-sm`}
                         >
                             {darkMode ? <Sun className="h-5 w-5" strokeWidth={2} /> : <Moon className="h-4 w-4" strokeWidth={2} />}
                         </button>
-
                         <Contributors darkMode={darkMode} />
                     </div>
                 </div>
             </header>
 
-            <main className="flex-1 container mx-auto px-2 py-2">
-                <div className="grid grid-cols-1 md:grid-cols-5 gap-3 h-full">
+            {/* Main content - Key modifications here */}
+            <main className="flex-1 container mx-auto px-2 py-2 overflow-auto">
+                <div className="grid grid-cols-1 md:grid-cols-5 gap-3 h-full min-h-0">
                     {/* First Column (20%) - Device Info */}
-                    <div className="md:col-span-1 flex flex-col h-full gap-3">
-
-                        <div
-                            className={`
-        flex-1
-        rounded-xl shadow-md p-3 border ${cardBg}
-        flex flex-col items-center transition-colors duration-300
-      `}
-                        >
-
+                    <div className="md:col-span-1 flex flex-col gap-3 min-h-0">
+                        <div className={`rounded-xl shadow-md p-3 border ${cardBg} flex flex-col items-center transition-colors duration-300 flex-1`}>
                             {/* Main icon/content area */}
                             <div className="flex-1 flex flex-col items-center w-full">
-                                {/* 1) Centered icon wrapper */}
+                                {/* Centered icon wrapper */}
                                 <div className="flex-1 flex items-center justify-center">
-                                    <div
-                                        className={`
-        p-3 rounded-full mb-2 ${iconBoxBg}
-        transition-colors duration-300
-      `}
-                                    >
+                                    <div className={`p-3 rounded-full mb-2 ${iconBoxBg} transition-colors duration-300`}>
                                         <Box className={primaryAccent} strokeWidth={1.5} />
                                     </div>
                                 </div>
 
-                                {/* 2) Buttons always at bottom */}
-                                <div className="w-full flex justify-center mb-4">
+                                {/* Buttons always at bottom */}
+                                <div className="w-full flex justify-center mb-2">
                                     <button
                                         onClick={connect}
                                         disabled={connected}
-                                        className={`
-        px-3 py-1 rounded-full transition-all duration-300 text-white
-        ${connected ? "bg-[#548687]" : "bg-[#7C9885]"}
-      `}
+                                        className={`px-3 py-1 rounded-full transition-all duration-300 text-white
+                                    ${connected ? "bg-[#548687]" : "bg-[#7C9885]"}`}
                                     >
                                         {connected ? "Connected" : "Connect"}
                                     </button>
                                     <button
                                         onClick={disconnect}
                                         disabled={!connected}
-                                        className={`
-        ml-2 px-3 py-1 rounded-full transition-all duration-300 text-white
-        ${connected
-                                                ? "bg-[#D9777B] hover:bg-[#C7696D]"
-                                                : "bg-gray-400 cursor-not-allowed"}
-      `}
+                                        className={`ml-2 px-3 py-1 rounded-full transition-all duration-300 text-white
+                                    ${connected ? "bg-[#D9777B] hover:bg-[#C7696D]" : "bg-gray-400 cursor-not-allowed"}`}
                                     >
                                         {connected ? "Disconnect" : "Disconnected"}
                                     </button>
                                 </div>
                             </div>
-
                         </div>
-                        <div
-                            className={`flex-1 rounded-xl shadow-md p-3 border ${cardBg} flex flex-col transition-colors duration-300`}
-                        >
+
+                        <div className={`rounded-xl shadow-md p-3 border ${cardBg} flex flex-col transition-colors duration-300 flex-1`}>
                             {/* Device status */}
                             <h3 className={`text-base font-semibold mb-2 ${textPrimary}`}>Device Status</h3>
                             <div className={`flex items-center mb-2 ${textSecondary}`}>
@@ -360,15 +341,11 @@ export default function SignalVisualizer() {
                         </div>
                     </div>
 
-                    {/* Second Column (40%) - EEG */}
-                    <div className="md:col-span-2 flex flex-col gap-2">
+                    {/* Second Column (40%) - EEG - Key fix area */}
+                    <div className="md:col-span-2 flex flex-col gap-2 min-h-0">
                         {/* EEG Row 1: Brain Image */}
-                        <div
-                            className={`rounded-xl shadow-md p-3 border ${cardBg} flex flex-col items-center justify-center transition-colors duration-300`}
-                        >
-                            <div
-                                className={`p-3 rounded-full mb-1 ${iconBoxBg} transition-colors duration-300`}
-                            >
+                        <div className={`rounded-xl shadow-md p-3 border ${cardBg} flex flex-col items-center justify-center transition-colors duration-300 flex-none h-auto`}>
+                            <div className={`p-3 rounded-full mb-1 ${iconBoxBg} transition-colors duration-300`}>
                                 <Brain className={primaryAccent} strokeWidth={1.5} />
                             </div>
                             <h2 className={`text-lg font-semibold mb-0 ${textPrimary}`}>
@@ -379,15 +356,13 @@ export default function SignalVisualizer() {
                             </p>
                         </div>
 
-                        {/* EEG Row 2: Spider Plot */}
-                        <div
-                            className={`flex flex-col rounded-xl shadow-md p-1 px-3 border ${cardBg} transition-colors duration-300 h-[40%]`}
-                        >
+                        {/* EEG Row 2: Spider Plot - using flex instead of fixed height */}
+                        <div className={`flex flex-col rounded-xl shadow-md p-1 px-3 border ${cardBg} transition-colors duration-300 flex-1`}>
                             {/* Charts container */}
-                            <div className="flex flex-row flex-1">
+                            <div className="flex flex-row flex-1 min-h-0">
                                 {/* Left chart: Channel 0 */}
-                                <div className="flex-1 pr-2 flex flex-col">
-                                    <div className="flex-1 h-full">
+                                <div className="flex-1 pr-2 flex flex-col min-h-0">
+                                    <div className="flex-1 h-full min-h-0">
                                         <ResponsiveContainer width="100%" height="100%">
                                             <RadarChart
                                                 data={
@@ -427,13 +402,13 @@ export default function SignalVisualizer() {
                                 </div>
 
                                 {/* Right chart: Channel 1 */}
-                                <div className="flex-1 pl-2 flex flex-col">
-                                    <div className="flex-1 h-full">
+                                <div className="flex-1 pl-2 flex flex-col min-h-0">
+                                    <div className="flex-1 h-full min-h-0">
                                         <ResponsiveContainer width="100%" height="100%">
                                             <RadarChart
                                                 data={
                                                     radarDataCh1Ref.current.length
-                                                        ? radarDataCh1Ref.current  // fixed to use Ch1 data ref
+                                                        ? radarDataCh1Ref.current
                                                         : bandData
                                                 }
                                                 cx="50%"
@@ -462,42 +437,38 @@ export default function SignalVisualizer() {
                                         </ResponsiveContainer>
                                     </div>
                                     {/* Heading below Channel 1 chart */}
-                                    <div className="text-center mt-2 text-sm " style={{ color: axisColor }}>
+                                    <div className="text-center mt-2 text-sm" style={{ color: axisColor }}>
                                         Synaptic Swing (R)
                                     </div>
                                 </div>
                             </div>
                         </div>
 
-
-                        {/* EEG Row 3: EEG Chart */}
-                        <div className="md:col-span-2 flex flex-col gap-2 ">
-                            {/* Chart container */}
-                            <div className={`h-30 max-h-[300px] rounded-xl overflow-hidden p-2 transition-colors duration-300  ${darkMode ? 'bg-zinc-800/90' : 'bg-white'}`}>
-
+                        {/* EEG Row 3: EEG Charts - using flex instead of fixed height */}
+                        <div className="flex flex-col gap-2 flex-1 min-h-0">
+                            {/* Chart 1 */}
+                            <div className={`flex-1 min-h-0 rounded-xl overflow-hidden p-2 transition-colors duration-300 ${darkMode ? 'bg-zinc-800/90' : 'bg-white'}`}>
                                 <WebglPlotCanvas
                                     ref={canvaseeg1Ref}
                                     channels={[0]} // EEG Channel 0
                                     colors={{ 0: CHANNEL_COLORS.ch0 }}
-
                                 />
                             </div>
-                            <div className={`h-30 max-h-[300px] rounded-xl overflow-hidden p-2 transition-colors duration-300  ${darkMode ? 'bg-zinc-800/90' : 'bg-white'}`}>
-
+                            {/* Chart 2 */}
+                            <div className={`flex-1 min-h-0 rounded-xl overflow-hidden p-2 transition-colors duration-300 ${darkMode ? 'bg-zinc-800/90' : 'bg-white'}`}>
                                 <WebglPlotCanvas
                                     ref={canvaseeg2Ref}
                                     channels={[1]} // EEG Channel 1
                                     colors={{ 1: CHANNEL_COLORS.ch1 }}
-
                                 />
                             </div>
                         </div>
                     </div>
 
-                    {/* Third Column (40%) - ECG */}
-                    <div className="md:col-span-2 flex flex-col gap-2">
+                    {/* Third Column (40%) - ECG - Key fix area */}
+                    <div className="md:col-span-2 flex flex-col gap-2 min-h-0">
                         {/* ECG Row 1: Heart Image */}
-                        <div className={`rounded-xl shadow-md p-1  pt-2 border ${cardBg} flex flex-col items-center transition-colors duration-300 w-full h-[19%]`}>
+                        <div className={`rounded-xl shadow-md p-1 pt-2 border ${cardBg} flex flex-col items-center transition-colors duration-300 flex-none h-auto`}>
                             <div className={`p-2 rounded-full ${heartIconBoxBg} transition-all duration-300 ${isBeating ? 'scale-110' : 'scale-100'} mb-1`}>
                                 <Heart
                                     className={`${secondaryAccent} ${isBeating ? 'scale-110' : 'scale-100'} transition-all duration-200`}
@@ -508,7 +479,7 @@ export default function SignalVisualizer() {
                             </div>
 
                             <div className="text-center pt-2">
-                                <h2 className={`text-lg font-semibold  ${textPrimary}`}>Heart Activity</h2>
+                                <h2 className={`text-lg font-semibold ${textPrimary}`}>Heart Activity</h2>
                                 <p className={`text-xs ${textSecondary}`}>Electrocardiogram (ECG)</p>
                             </div>
 
@@ -524,102 +495,69 @@ export default function SignalVisualizer() {
                             </div>
                         </div>
 
-                        {/* ECG Row 2: BPM Info */}
-                        <div
-                            className={`md:col-span-2 ${cardBg} rounded-xl shadow-lg px-4 border transition-colors duration-300 h-[40%] flex flex-col`}
-                        >
-                            {/* BPM Header */}
-                            <div className="flex items-center justify-between p-4">
-                                <div className="flex items-baseline pt-6">
-                                    <span
-                                        ref={currentRef}
-                                        className={`text-6xl font-bold ${primaryAccent}`}
-                                    >
+                        {/* ECG Row 2: BPM Info - using flex instead of fixed height */}
+                        <div className={`${cardBg} rounded-xl shadow-lg px-4 border transition-colors duration-300 flex-1 flex flex-col`}>
+                            {/* 1) Header: current BPM on left, stats on right */}
+                            <div className="flex items-start justify-between py-3">
+                                {/* Current BPM */}
+                                <div className="flex items-baseline">
+                                    <span ref={currentRef} className={`text-5xl font-bold ${primaryAccent}`}>
                                         --
                                     </span>
-                                    <span className={`ml-2 text-xl ${labelText}`}>BPM</span>
+                                    <span className={`ml-2 text-lg ${labelText}`}>BPM</span>
                                 </div>
-                                <div
-                                    className={`flex gap-3 items-center ${textSecondary} text-sm`}
-                                >
-                                    <Activity size={16} />
-                                    <span>Monitoring active</span>
+
+                                {/* Low / Avg / High stats */}
+                                <div className="flex space-x-4">
+                                    {/* Lowest */}
+                                    <div className="flex flex-col items-center">
+                                        <span className={`text-xs ${labelText}`}>Low</span>
+                                        <span ref={lowRef} className={`text-sm font-semibold ${textPrimary}`}>
+                                            -- BPM
+                                        </span>
+                                    </div>
+                                    {/* Average */}
+                                    <div className="flex flex-col items-center">
+                                        <span className={`text-xs ${labelText}`}>Avg</span>
+                                        <span ref={avgRef} className={`text-sm font-semibold ${secondaryAccent}`}>
+                                            -- BPM
+                                        </span>
+                                    </div>
+                                    {/* Highest */}
+                                    <div className="flex flex-col items-center">
+                                        <span className={`text-xs ${labelText}`}>High</span>
+                                        <span ref={highRef} className={`text-sm font-semibold ${primaryAccent}`}>
+                                            -- BPM
+                                        </span>
+                                    </div>
                                 </div>
                             </div>
 
-                            {/* Stats at bottom */}
-                            <div className="mt-auto grid grid-cols-3 gap-3 pb-4">
-                                {/* Low BPM */}
-                                <div
-                                    className={`${statCardBg} rounded-lg p-2 transition-colors duration-300 flex flex-col items-center`}
-                                >
-                                    <div className={`text-sm ${labelText} mb-1`}>Lowest</div>
-                                    <div className="flex items-baseline">
-                                        <span
-                                            ref={lowRef}
-                                            className={`text-2xl font-semibold ${textPrimary}`}
-                                        >
-                                            --
-                                        </span>
-                                        <span className={`ml-1 text-sm ${textSecondary}`}>BPM</span>
-                                    </div>
-                                </div>
-
-                                {/* Average BPM */}
-                                <div
-                                    className={`${statCardBg} rounded-lg p-2  transition-colors duration-300 flex flex-col items-center`}
-                                >
-                                    <div className={`text-sm ${labelText} mb-1`}>Average</div>
-                                    <div className="flex items-baseline">
-                                        <span
-                                            ref={avgRef}
-                                            className={`text-2xl font-semibold ${secondaryAccent}`}
-                                        >
-                                            --
-                                        </span>
-                                        <span className={`ml-1 text-sm ${textSecondary}`}>BPM</span>
-                                    </div>
-                                </div>
-
-                                {/* High BPM */}
-                                <div
-                                    className={`${statCardBg} rounded-lg p-2  transition-colors duration-300 flex flex-col items-center`}
-                                >
-                                    <div className={`text-sm ${labelText} mb-1`}>Highest</div>
-                                    <div className="flex items-baseline">
-                                        <span
-                                            ref={highRef}
-                                            className={`text-2xl font-semibold ${primaryAccent}`}
-                                        >
-                                            --
-                                        </span>
-                                        <span className={`ml-1 text-sm ${textSecondary}`}>BPM</span>
-                                    </div>
-                                </div>
+                            {/* 2) Chart: fills remaining space */}
+                            <div className={`flex-1 rounded-xl overflow-hidden p-1 min-h-0 transition-colors duration-300 ${darkMode ? "bg-zinc-800/90" : "bg-white"}`}>
+                                <BpmTimelineChart
+                                    darkMode={darkMode}
+                                    existingBpmWorker={bpmWorkerRef.current}
+                                />
                             </div>
                         </div>
 
-                        {/* ECG Section */}
-                        <div className="md:col-span-2 flex flex-col gap-3">
-                            <div className={`h-62 max-h-[300px] rounded-xl overflow-hidden p-2 transition-colors duration-300  ${darkMode ? 'bg-zinc-800/90' : 'bg-white'}`}>
-
-                                <WebglPlotCanvas
-                                    ref={canvasecgRef}
-                                    channels={[2]} // ECG Channel 2
-                                    colors={{ 2: CHANNEL_COLORS.ch2 }}
-
-                                />
-                            </div>
+                        {/* ECG Chart - using flex instead of fixed height */}
+                        <div className={`flex-1 min-h-0 rounded-xl overflow-hidden p-2 transition-colors duration-300 ${darkMode ? 'bg-zinc-800/90' : 'bg-white'}`}>
+                            <WebglPlotCanvas
+                                ref={canvasecgRef}
+                                channels={[2]} // ECG Channel 2
+                                colors={{ 2: CHANNEL_COLORS.ch2 }}
+                            />
                         </div>
                     </div>
                 </div>
             </main>
 
-            <footer
-                className={`py-2 px-4 ${darkMode
-                    ? "bg-zinc-900/90 border-t border-amber-900/20"
-                    : "bg-white/90 backdrop-blur-sm border-t border-amber-100"
-                    } shadow-inner transition-colors duration-300`}
+            <footer className={`py-2 px-4 flex-shrink-0 ${darkMode
+                ? "bg-zinc-900/90 border-t border-amber-900/20"
+                : "bg-white/90 backdrop-blur-sm border-t border-amber-100"
+                } shadow-inner transition-colors duration-300`}
             >
                 <div className="container mx-auto flex flex-col md:flex-row justify-between items-center text-xs">
                     <div className={textSecondary + " mb-1 md:mb-0"}>
