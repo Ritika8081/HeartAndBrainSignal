@@ -14,8 +14,10 @@ import { useBleStream } from '../components/Bledata';
 import WebglPlotCanvas from '../components/WebglPlotCanvas';
 import Contributors from './Contributors';
 import { WebglPlotCanvasHandle } from "../components/WebglPlotCanvas";
-// First, import the BpmTimelineChart component at the top of your file:
-import BpmTimelineChart from '../components/BpmPlot'
+import {
+    LineChart, Line, XAxis, YAxis,
+    CartesianGrid, Tooltip
+} from "recharts";
 
 const CHANNEL_COLORS: Record<string, string> = {
     ch0: "#C29963", // EEG channel 0
@@ -44,6 +46,12 @@ export default function SignalVisualizer() {
     let previousCounter: number | null = null; // Variable to store the previous counter value for loss detection
     const bpmWorkerRef = useRef<Worker | null>(null);
     const previousCounterRef = useRef<number | null>(null); // Replace previousCounter with a useRef
+    // new HRV refs
+    const hrvRef = useRef<HTMLSpanElement>(null);
+    const hrvHighRef = useRef<HTMLSpanElement>(null);
+    const hrvLowRef = useRef<HTMLSpanElement>(null);
+    const hrvAvgRef = useRef<HTMLSpanElement>(null);
+    const [hrvData, setHrvData] = useState<{ time: number; hrv: number }[]>([]);
 
     // Create beating heart animation effect
     useEffect(() => {
@@ -169,7 +177,6 @@ export default function SignalVisualizer() {
         }
     }, []);
 
-    // BPM worker: smooth & display BPM, high/low/avg, (optionally) peaks ---
     useEffect(() => {
         const worker = new Worker(
             new URL("../webworker/bpm.worker.ts", import.meta.url),
@@ -188,11 +195,30 @@ export default function SignalVisualizer() {
                 low: number | null;
                 avg: number | null;
                 peaks: number[];
+                hrv: number | null;
+                hrvHigh: number | null;
+                hrvLow: number | null;
+                hrvAvg: number | null;
             }>
         ) => {
-            const { bpm, high, low, avg } = e.data;
+            const { bpm, high, low, avg, hrv, hrvHigh, hrvLow, hrvAvg } = e.data;
 
-            // — smooth current BPM —
+            console.log(
+                `BPM: current=${bpm}, low=${low}, high=${high}, avg=${avg}; ` +
+                `HRV (ms): latest=${hrv}, low=${hrvLow}, high=${hrvHigh}, avg=${hrvAvg}`
+            );
+
+            // HRV chart data inside onmessage, where `hrv` exists:**
+            if (hrv !== null) {
+                setHrvData(prev => {
+                    const newPoint = { time: Date.now(), hrv };
+                    const updated = [...prev, newPoint];
+                    // Only keep last 60 points:
+                    return updated.length > 60 ? updated.slice(-60) : updated;
+                });
+            }
+
+            // Update BPM values
             if (bpm !== null) {
                 bpmWindow.push(bpm);
                 if (bpmWindow.length > windowSize) bpmWindow.shift();
@@ -202,24 +228,32 @@ export default function SignalVisualizer() {
                     const diff = avgBPM - displayedBPM;
                     displayedBPM += Math.sign(diff) * Math.min(Math.abs(diff), maxChange);
                 }
-                currentRef.current!.textContent = `${Math.round(displayedBPM)}`;
+                if (currentRef.current) currentRef.current.textContent = `${Math.round(displayedBPM)}`;
             } else {
                 bpmWindow.length = 0;
                 displayedBPM = null;
-                currentRef.current!.textContent = "--";
+                if (currentRef.current) currentRef.current.textContent = "--";
             }
 
-            // — display high/low/avg —
-            highRef.current!.textContent = high !== null ? `${high}` : "--";
-            lowRef.current!.textContent = low !== null ? `${low}` : "--";
-            avgRef.current!.textContent = avg !== null ? `${avg}` : "--";
+            if (highRef.current) highRef.current.textContent = high !== null ? `${high}` : "--";
+            if (lowRef.current) lowRef.current.textContent = low !== null ? `${low}` : "--";
+            if (avgRef.current) avgRef.current.textContent = avg !== null ? `${avg}` : "--";
+
+            // Update HRV values
+            if (hrvRef.current) hrvRef.current.textContent = hrv !== null ? `${hrv}` : "--";
+            if (hrvHighRef.current) hrvHighRef.current.textContent = hrvHigh !== null ? `${hrvHigh}` : "--";
+            if (hrvLowRef.current) hrvLowRef.current.textContent = hrvLow !== null ? `${hrvLow}` : "--";
+            if (hrvAvgRef.current) hrvAvgRef.current.textContent = hrvAvg !== null ? `${hrvAvg}` : "--";
         };
 
+
         bpmWorkerRef.current = worker;
+
         return () => {
             worker.terminate();
         };
     }, []);
+
 
     // 5) Hook into your existing dataProcessor worker
     useEffect(() => {
@@ -489,53 +523,147 @@ export default function SignalVisualizer() {
                             </div>
                         </div>
 
-                        {/* ECG Row 2: BPM Info - 40% height */}
-                        <div className={`${cardBg} rounded-xl shadow-lg px-4 border transition-colors duration-300 h-2/5 min-h-0 overflow-hidden flex flex-col`}>
-                            {/* Header: current BPM on left, stats on right */}
-                            <div className="flex items-start justify-between py-3 flex-none">
-                                {/* Current BPM */}
-                                <div className="flex items-baseline">
-                                    <span ref={currentRef} className={`text-5xl font-bold ${primaryAccent}`}>
-                                        --
-                                    </span>
-                                    <span className={`ml-2 text-lg ${labelText}`}>BPM</span>
+                        {/* ECG Row 2: BPM + HRV Info - 40% height */}
+                        <div
+                            className={`
+    ${cardBg}
+    rounded-xl shadow-md border
+    transition-colors duration-300
+    h-2/5 min-h-0 overflow-hidden
+    flex flex-col
+  `}
+                        >
+                            {/* ── Top Section: Heart Rate Stats ── */}
+                            <div className="grid grid-cols-5 gap-2 p-3">
+                                {/* Current BPM - takes 2 columns */}
+                                <div className="col-span-2 flex flex-col justify-center">
+
+                                    <div className="flex items-baseline mt-1">
+                                        <span ref={currentRef} className={`text-4xl font-bold ${secondaryAccent}`}>
+                                            --
+                                        </span>
+                                        <span className={`ml-2 text-lg ${labelText}`}>BPM</span>
+                                    </div>
                                 </div>
 
-                                {/* Low / Avg / High stats */}
-                                <div className="flex space-x-4">
-                                    {/* Lowest */}
-                                    <div className="flex flex-col items-center">
-                                        <span className={`text-xs ${labelText}`}>Low</span>
-                                        <span ref={lowRef} className={`text-sm font-semibold ${textPrimary}`}>
-                                            -- BPM
-                                        </span>
+                                {/* Stats cards - takes 3 columns */}
+                                <div className="col-span-3 grid grid-cols-3 gap-2">
+                                    {/* Low stat */}
+                                    <div className={` rounded-lg flex flex-col items-center justify-center transition-colors duration-300`}>
+                                        <span className={`text-xs ${labelText}`}>LOW</span>
+                                        <div className="flex items-baseline">
+                                            <span ref={lowRef} className={`text-lg font-semibold ${textPrimary}`}>--</span>
+                                            <span className={`ml-1 text-xs ${labelText}`}>BPM</span>
+                                        </div>
                                     </div>
-                                    {/* Average */}
-                                    <div className="flex flex-col items-center">
-                                        <span className={`text-xs ${labelText}`}>Avg</span>
-                                        <span ref={avgRef} className={`text-sm font-semibold ${secondaryAccent}`}>
-                                            -- BPM
-                                        </span>
+
+                                    {/* Avg stat */}
+                                    <div className={` rounded-lg  flex flex-col items-center justify-center transition-colors duration-300 `}>
+                                        <span className={`text-xs ${labelText}`}>AVG</span>
+                                        <div className="flex items-baseline">
+                                            <span ref={avgRef} className={`text-lg font-semibold ${primaryAccent}`}>--</span>
+                                            <span className={`ml-1 text-xs ${labelText}`}>BPM</span>
+                                        </div>
                                     </div>
-                                    {/* Highest */}
-                                    <div className="flex flex-col items-center">
-                                        <span className={`text-xs ${labelText}`}>High</span>
-                                        <span ref={highRef} className={`text-sm font-semibold ${primaryAccent}`}>
-                                            -- BPM
-                                        </span>
+
+                                    {/* High stat */}
+                                    <div className={` rounded-lg flex flex-col items-center justify-center transition-colors duration-300`}>
+                                        <span className={`text-xs ${labelText}`}>HIGH</span>
+                                        <div className="flex items-baseline">
+                                            <span ref={highRef} className={`text-lg font-semibold ${textPrimary}`}>--</span>
+                                            <span className={`ml-1 text-xs ${labelText}`}>BPM</span>
+                                        </div>
                                     </div>
                                 </div>
                             </div>
 
-                            {/* Chart: fills remaining space */}
-                            <div className={`flex-1 rounded-xl overflow-hidden p-1 min-h-0 transition-colors duration-300 ${darkMode ? "bg-zinc-800/90" : "bg-white"}`}>
-                                <BpmTimelineChart
-                                    darkMode={darkMode}
-                                    existingBpmWorker={bpmWorkerRef.current}
-                                />
+                            {/* ── Divider with label ── */}
+                            <div className="relative py-1">
+                                <div className="absolute inset-0 flex items-center">
+                                    <div className={`w-full border-t ${darkMode ? 'border-zinc-700' : 'border-stone-200'}`}></div>
+                                </div>
+                                <div className="relative flex justify-center">
+                                    <span className={`px-2 text-xs font-medium ${darkMode ? 'bg-zinc-800' : 'bg-white'} ${labelText}`}>
+                                        HEART RATE VARIABILITY
+                                    </span>
+                                </div>
+                            </div>
+
+                            {/* ── Middle Section: HRV stats ── */}
+                            <div className="grid grid-cols-4 gap-1 px-3">
+                                <div className={`flex flex-col items-center ${statCardBg} rounded-md py-1`}>
+                                    <span className={`text-xs ${labelText}`}>LATEST</span>
+                                    <div className="flex items-baseline">
+                                        <span ref={hrvRef} className={`text-sm font-semibold ${secondaryAccent}`}>--</span>
+                                        <span className={`ml-1 text-xs ${labelText}`}>ms</span>
+                                    </div>
+                                </div>
+
+                                <div className={`flex flex-col items-center ${statCardBg} rounded-md py-1`}>
+                                    <span className={`text-xs ${labelText}`}>LOW</span>
+                                    <div className="flex items-baseline">
+                                        <span ref={hrvLowRef} className={`text-sm font-semibold ${textPrimary}`}>--</span>
+                                        <span className={`ml-1 text-xs ${labelText}`}>ms</span>
+                                    </div>
+                                </div>
+
+                                <div className={`flex flex-col items-center ${statCardBg} rounded-md py-1`}>
+                                    <span className={`text-xs ${labelText}`}>AVG</span>
+                                    <div className="flex items-baseline">
+                                        <span ref={hrvAvgRef} className={`text-sm font-semibold ${primaryAccent}`}>--</span>
+                                        <span className={`ml-1 text-xs ${labelText}`}>ms</span>
+                                    </div>
+                                </div>
+
+                                <div className={`flex flex-col items-center ${statCardBg} rounded-md py-1`}>
+                                    <span className={`text-xs ${labelText}`}>HIGH</span>
+                                    <div className="flex items-baseline">
+                                        <span ref={hrvHighRef} className={`text-sm font-semibold ${textPrimary}`}>--</span>
+                                        <span className={`ml-1 text-xs ${labelText}`}>ms</span>
+                                    </div>
+                                </div>
+                            </div>
+
+                            {/* ── HRV Chart Section ── */}
+                            <div className="flex-1 px-2 pb-2 pt-1">
+                                <div className={`h-full w-full rounded-lg overflow-hidden ${darkMode ? 'bg-zinc-900/50' : 'bg-stone-50'}`}>
+                                    <ResponsiveContainer width="100%" height="100%">
+                                        <LineChart data={hrvData} margin={{ top: 5, right: 10, left: 0, bottom: 5 }}>
+                                            <CartesianGrid strokeDasharray="3 3" stroke={gridLines} opacity={0.5} />
+                                            <XAxis
+                                                dataKey="time"
+                                                tickFormatter={(t) => new Date(t).toLocaleTimeString([], { minute: '2-digit', second: '2-digit' })}
+                                                stroke={axisColor}
+                                                tick={{ fontSize: 10 }}
+                                            />
+                                            <YAxis
+                                                stroke={axisColor}
+                                                tick={{ fontSize: 10 }}
+                                                domain={['dataMin - 5', 'dataMax + 5']}
+                                            />
+                                            <Tooltip
+                                                contentStyle={{
+                                                    backgroundColor: darkMode ? '#27272a' : '#ffffff',
+                                                    borderColor: darkMode ? '#52525b' : '#e5e7eb',
+                                                    borderRadius: '6px'
+                                                }}
+                                                labelFormatter={(t) => new Date(t).toLocaleTimeString()}
+                                            />
+                                            <Line
+                                                type="monotone"
+                                                dataKey="hrv"
+                                                name="HRV"
+                                                stroke={darkMode ? "#f59e0b" : "#d97706"}
+                                                strokeWidth={2}
+                                                dot={false}
+                                                activeDot={{ r: 4, stroke: darkMode ? "#d97706" : "#f59e0b", strokeWidth: 1 }}
+                                                animationDuration={300}
+                                            />
+                                        </LineChart>
+                                    </ResponsiveContainer>
+                                </div>
                             </div>
                         </div>
-
                         {/* ECG Chart - Remaining height */}
                         <div className={`flex-1 min-h-0 rounded-xl overflow-hidden p-2 transition-colors duration-300 ${darkMode ? 'bg-zinc-800/90' : 'bg-white'}`}>
                             <WebglPlotCanvas
