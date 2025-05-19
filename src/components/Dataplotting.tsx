@@ -14,10 +14,8 @@ import { useBleStream } from '../components/Bledata';
 import WebglPlotCanvas from '../components/WebglPlotCanvas';
 import Contributors from './Contributors';
 import { WebglPlotCanvasHandle } from "../components/WebglPlotCanvas";
-import {
-    LineChart, Line, XAxis, YAxis,
-    CartesianGrid, Tooltip
-} from "recharts";
+import HRVPlotCanvas, { HRVPlotCanvasHandle } from '@/components/Hrvwebglplot'
+
 
 const CHANNEL_COLORS: Record<string, string> = {
     ch0: "#C29963", // EEG channel 0
@@ -52,7 +50,7 @@ export default function SignalVisualizer() {
     const hrvLowRef = useRef<HTMLSpanElement>(null);
     const hrvAvgRef = useRef<HTMLSpanElement>(null);
     const [hrvData, setHrvData] = useState<{ time: number; hrv: number }[]>([]);
-
+    const hrvplotRef = useRef<HRVPlotCanvasHandle>(null);
     // Create beating heart animation effect
     useEffect(() => {
         const interval = setInterval(() => {
@@ -208,14 +206,8 @@ export default function SignalVisualizer() {
                 `HRV (ms): latest=${hrv}, low=${hrvLow}, high=${hrvHigh}, avg=${hrvAvg}`
             );
 
-            // HRV chart data inside onmessage, where `hrv` exists:**
-            if (hrv !== null) {
-                setHrvData(prev => {
-                    const newPoint = { time: Date.now(), hrv };
-                    const updated = [...prev, newPoint];
-                    // Only keep last 60 points:
-                    return updated.length > 60 ? updated.slice(-60) : updated;
-                });
+            if (hrv !== null && !isNaN(hrv)) {
+                hrvplotRef.current?.updateHRV(hrv);
             }
 
             // Update BPM values
@@ -506,7 +498,7 @@ export default function SignalVisualizer() {
                     {/* Third Column (40%) - ECG */}
                     <div className="md:col-span-2 flex flex-col gap-3 h-full min-h-0 overflow-hidden">
                         {/* ECG Row 1: Heart Image - Fixed height */}
-                        <div className={`rounded-xl shadow-md py-2 px-3 border ${cardBg} flex items-center transition-colors duration-300 flex-none`} style={{ height: "80px" }}>
+                        <div className={`rounded-xl shadow-md py-2 px-3 border ${cardBg} flex items-center justify-center transition-colors duration-300 flex-none`} style={{ height: "80px" }}>
                             <div className="flex items-center">
                                 <div className={`p-2 rounded-full ${heartIconBoxBg} transition-all duration-300 ${isBeating ? 'scale-110' : 'scale-100'} mr-3`}>
                                     <Heart
@@ -624,45 +616,16 @@ export default function SignalVisualizer() {
                                 </div>
                             </div>
 
-                            {/* ── HRV Chart Section ── */}
-                            <div className="flex-1 px-2 pb-2 pt-1">
-                                <div className={`h-full w-full rounded-lg overflow-hidden ${darkMode ? 'bg-zinc-900/50' : 'bg-stone-50'}`}>
-                                    <ResponsiveContainer width="100%" height="100%">
-                                        <LineChart data={hrvData} margin={{ top: 5, right: 10, left: 0, bottom: 5 }}>
-                                            <CartesianGrid strokeDasharray="3 3" stroke={gridLines} opacity={0.5} />
-                                            <XAxis
-                                                dataKey="time"
-                                                tickFormatter={(t) => new Date(t).toLocaleTimeString([], { minute: '2-digit', second: '2-digit' })}
-                                                stroke={axisColor}
-                                                tick={{ fontSize: 10 }}
-                                            />
-                                            <YAxis
-                                                stroke={axisColor}
-                                                tick={{ fontSize: 10 }}
-                                                domain={['dataMin - 5', 'dataMax + 5']}
-                                            />
-                                            <Tooltip
-                                                contentStyle={{
-                                                    backgroundColor: darkMode ? '#27272a' : '#ffffff',
-                                                    borderColor: darkMode ? '#52525b' : '#e5e7eb',
-                                                    borderRadius: '6px'
-                                                }}
-                                                labelFormatter={(t) => new Date(t).toLocaleTimeString()}
-                                            />
-                                            <Line
-                                                type="monotone"
-                                                dataKey="hrv"
-                                                name="HRV"
-                                                stroke={darkMode ? "#f59e0b" : "#d97706"}
-                                                strokeWidth={2}
-                                                dot={false}
-                                                activeDot={{ r: 4, stroke: darkMode ? "#d97706" : "#f59e0b", strokeWidth: 1 }}
-                                                animationDuration={300}
-                                            />
-                                        </LineChart>
-                                    </ResponsiveContainer>
-                                </div>
+
+                            <div className={`h-30 min-h-[10px] w-full rounded-lg overflow-hidden px-2 ${darkMode ? 'bg-zinc-900/50' : 'bg-stone-50'}`}>
+                                <HRVPlotCanvas
+                                    ref={hrvplotRef}
+                                    numPoints={2000}
+                                    color={darkMode ? '#f59e0b' : '#d97706'}
+                                />
+
                             </div>
+
                         </div>
                         {/* ECG Chart - Remaining height */}
                         <div className={`flex-1 min-h-0 rounded-xl overflow-hidden p-2 transition-colors duration-300 ${darkMode ? 'bg-zinc-800/90' : 'bg-white'}`}>
