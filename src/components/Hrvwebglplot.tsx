@@ -37,8 +37,8 @@ const HRVPlotCanvas = forwardRef<HRVPlotCanvasHandle, Props>(
         useImperativeHandle(ref, () => ({
             redraw: () => plotRef.current?.update() ?? undefined,
             updateHRV: (hrv: number) => {
-                const a = (hrv - 1000 / 2) * (2 / 1000);
-                console.log(a);
+                const safeHRV = Math.max(0, Math.min(hrv, 1500));  // Clamp to safe range
+                const a = (safeHRV - 750) * (2 / 1500);            // Normalize around 750ms
 
                 const line = lineRef.current;
                 if (!line) return;

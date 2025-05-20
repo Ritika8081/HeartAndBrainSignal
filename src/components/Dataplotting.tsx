@@ -1,6 +1,7 @@
 // app/SignalVisualizer.tsx
 "use client";
 import { useState, useRef, useCallback, useEffect } from "react";
+import { useMotionValue } from "framer-motion";
 import {
     ResponsiveContainer,
     RadarChart,
@@ -15,6 +16,7 @@ import WebglPlotCanvas from '../components/WebglPlotCanvas';
 import Contributors from './Contributors';
 import { WebglPlotCanvasHandle } from "../components/WebglPlotCanvas";
 import HRVPlotCanvas, { HRVPlotCanvasHandle } from '@/components/Hrvwebglplot'
+import BrainSplitVisualizer from '@/components/BrainSplit';
 
 
 const CHANNEL_COLORS: Record<string, string> = {
@@ -51,6 +53,9 @@ export default function SignalVisualizer() {
     const hrvAvgRef = useRef<HTMLSpanElement>(null);
     const [hrvData, setHrvData] = useState<{ time: number; hrv: number }[]>([]);
     const hrvplotRef = useRef<HRVPlotCanvasHandle>(null);
+
+    const leftMV = useMotionValue(0);
+    const rightMV = useMotionValue(0);
     // Create beating heart animation effect
     useEffect(() => {
         const interval = setInterval(() => {
@@ -122,6 +127,9 @@ export default function SignalVisualizer() {
             }>
         ) => {
             const { smooth0, smooth1 } = e.data;
+
+            leftMV.set(smooth0.beta);
+            rightMV.set(smooth1.beta);
 
             radarDataCh0Ref.current = Object.entries(smooth0).map(
                 ([subject, value]) => ({ subject: capitalize(subject), value })
@@ -372,8 +380,8 @@ export default function SignalVisualizer() {
                         {/* EEG Row 1: Brain Image - Fixed height */}
                         <div className={`rounded-xl shadow-md py-2 px-3 border ${cardBg} flex items-center justify-center transition-colors duration-300 flex-none`} style={{ height: "80px" }}>
                             <div className="flex items-center">
-                                <div className={`p-2 rounded-full ${iconBoxBg} transition-colors duration-300 mr-3`}>
-                                    <Brain className={primaryAccent} strokeWidth={1.5} />
+                                <div className={`p-2 rounded-full  duration-300 mr-3 px-8`}>
+                                    <BrainSplitVisualizer leftMotion={leftMV} rightMotion={rightMV} size={45} />
                                 </div>
                                 <div>
                                     <h2 className={`text-lg font-semibold ${textPrimary}`}>
