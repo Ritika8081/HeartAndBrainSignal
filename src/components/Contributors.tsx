@@ -50,8 +50,8 @@ const contributors = [
 
 export default function Contributors({ darkMode }: ContributorsProps) {
   const iconBtnClasses = `p-1 rounded-full transition-all duration-300 ${darkMode
-      ? 'bg-zinc-700 hover:bg-zinc-600 text-zinc-200'
-      : 'bg-stone-200 hover:bg-stone-300 text-stone-700'
+    ? 'bg-zinc-700 hover:bg-zinc-600 text-zinc-200'
+    : 'bg-stone-200 hover:bg-stone-300 text-stone-700'
     } shadow-sm`;
 
 

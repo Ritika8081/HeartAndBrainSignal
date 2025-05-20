@@ -17,7 +17,8 @@ import Contributors from './Contributors';
 import { WebglPlotCanvasHandle } from "../components/WebglPlotCanvas";
 import HRVPlotCanvas, { HRVPlotCanvasHandle } from '@/components/Hrvwebglplot'
 import BrainSplitVisualizer from '@/components/BrainSplit';
-
+import { StateIndicator, State } from "@/components/StateIndicator";
+import { predictState } from "@/lib/stateClassifier";
 
 const CHANNEL_COLORS: Record<string, string> = {
     ch0: "#C29963", // EEG channel 0
@@ -38,6 +39,7 @@ export default function SignalVisualizer() {
     const dataProcessorWorkerRef = useRef<Worker | null>(null);
     // Animation state
     const [isBeating, setIsBeating] = useState(false);
+    const [userState, setUserState] = useState<State>("relaxed");
     // 1) Create refs for each display element
     const currentRef = useRef<HTMLDivElement>(null);
     const highRef = useRef<HTMLDivElement>(null);
@@ -244,6 +246,13 @@ export default function SignalVisualizer() {
             if (hrvHighRef.current) hrvHighRef.current.textContent = hrvHigh !== null ? `${hrvHigh}` : "--";
             if (hrvLowRef.current) hrvLowRef.current.textContent = hrvLow !== null ? `${hrvLow}` : "--";
             if (hrvAvgRef.current) hrvAvgRef.current.textContent = hrvAvg !== null ? `${hrvAvg}` : "--";
+
+            // classify current state
+            const sdnn = hrvHigh ?? 0;
+            const rmssd = hrv ?? 0;
+            const pnn50 = 0; // placeholder if available
+            const state = predictState({ sdnn, rmssd, pnn50 });
+            setUserState(state);
         };
 
 
@@ -519,8 +528,10 @@ export default function SignalVisualizer() {
                                 <div>
                                     <h2 className={`text-lg font-semibold ${textPrimary}`}>Heart Activity</h2>
                                     <p className={`text-xs ${textSecondary}`}>Electrocardiogram (ECG)</p>
+
                                 </div>
                             </div>
+
                         </div>
 
                         {/* ECG Row 2: BPM + HRV Info - 40% height */}
@@ -577,17 +588,24 @@ export default function SignalVisualizer() {
                                 </div>
                             </div>
 
-                            {/* ── Divider with label ── */}
-                            <div className="relative py-1">
-                                <div className="absolute inset-0 flex items-center">
-                                    <div className={`w-full border-t ${darkMode ? 'border-zinc-700' : 'border-stone-200'}`}></div>
+                            <div className="flex items-center gap-4 py-2">
+                                {/* Divider Line */}
+                                <div className="flex-1 h-px bg-stone-200 dark:bg-zinc-700" />
+
+                                {/* Divider Label */}
+                                <span className={`text-xs font-medium px-2 ${darkMode ? ' text-white' : 'text-black'} ${labelText}`}>
+                                    HEART RATE VARIABILITY
+                                </span>
+
+                                {/* Affective State */}
+                                <div className="flex items-center gap-2">
+                                    <StateIndicator state={userState} />
                                 </div>
-                                <div className="relative flex justify-center">
-                                    <span className={`px-2 text-xs font-medium ${darkMode ? 'bg-zinc-800' : 'bg-white'} ${labelText}`}>
-                                        HEART RATE VARIABILITY
-                                    </span>
-                                </div>
+
+                                {/* Divider Line */}
+                                <div className="flex-1 h-px bg-stone-200 dark:bg-zinc-700" />
                             </div>
+
 
                             {/* ── Middle Section: HRV stats ── */}
                             <div className="grid grid-cols-4 gap-1 px-3">
@@ -625,7 +643,7 @@ export default function SignalVisualizer() {
                             </div>
 
 
-                            <div className={`h-30 min-h-[10px] w-full rounded-lg overflow-hidden px-2 ${darkMode ? 'bg-zinc-900/50' : 'bg-stone-50'}`}>
+                            <div className={`h-30 min-h-[10px] w-full rounded-lg overflow-hidden px-2 `}>
                                 <HRVPlotCanvas
                                     ref={hrvplotRef}
                                     numPoints={2000}

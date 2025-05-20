@@ -112,7 +112,7 @@ const HRVPlotCanvas = forwardRef<HRVPlotCanvasHandle, Props>(
         return (
             <canvas
                 ref={canvasRef}
-                style={{ width: '100%', height: '100%', display: 'block' }}
+                style={{ width: '100%', height: '100%'}}
             />
         );
     }
