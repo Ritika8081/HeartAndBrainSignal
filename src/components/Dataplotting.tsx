@@ -299,7 +299,7 @@ export default function SignalVisualizer() {
     const labelText = darkMode ? "text-zinc-400" : "text-stone-500"; // Added for labels
 
     return (
-        <div className={`flex flex-col h-screen w-full overflow-hidden ${bgGradient} transition-colors duration-300`}>
+        <div className={`flex flex-col h-screen w-full overflow-hidden text-sm sm:text-base md:text-lg lg:text-xl ${bgGradient} transition-colors duration-300`}>
             {/* Header - Fixed height */}
             <header className={`${darkMode
                 ? 'bg-zinc-900/90 backdrop-blur-sm border-b border-amber-900/20'
@@ -344,7 +344,7 @@ export default function SignalVisualizer() {
                                 <button
                                     onClick={connect}
                                     disabled={connected}
-                                    className={`px-3 py-1 rounded-full transition-all duration-300 text-white
+                                    className={`m-1 px-1 py-1.5 sm:px-2 sm:py-2 md:px-3 md:py-3 text-[0.6em] sm:text-[0.7em] md:text-[0.8em] rounded-xl font-semibold transition-colors duration-300 ${primaryAccent} ${cardBg} border
                                     ${connected ? "bg-[#548687]" : "bg-[#7C9885]"}`}
                                 >
                                     {connected ? "Connected" : "Connect"}
@@ -352,7 +352,7 @@ export default function SignalVisualizer() {
                                 <button
                                     onClick={disconnect}
                                     disabled={!connected}
-                                    className={`ml-2 px-3 py-1 rounded-full transition-all duration-300 text-white
+                                    className={`m-1 px-1 py-1.5 sm:px-2 sm:py-2 md:px-3 md:py-3 text-[0.6em] sm:text-[0.7em] md:text-[0.8em] rounded-xl font-semibold transition-colors duration-300 ${primaryAccent} ${cardBg} border
                                     ${connected ? "bg-[#D9777B] hover:bg-[#C7696D]" : "bg-gray-400 cursor-not-allowed"}`}
                                 >
                                     {connected ? "Disconnect" : "Disconnected"}
@@ -547,7 +547,7 @@ export default function SignalVisualizer() {
   `}
                         >
                             {/* ── Top Section: Heart Rate Stats ── */}
-                            <div className="grid grid-cols-5 gap-2 p-3">
+                            <div className="grid grid-cols-5 gap-2 p-2">
                                 {/* Current BPM - takes 2 columns */}
                                 <div className="col-span-2 flex flex-col justify-center">
 
@@ -555,47 +555,48 @@ export default function SignalVisualizer() {
                                         <span ref={currentRef} className={`text-4xl font-bold ${secondaryAccent}`}>
                                             --
                                         </span>
-                                        <span className={`ml-2 text-lg ${labelText}`}>BPM</span>
+                                        <span className={`ml-2 text-[0.6em] sm:text-[0.7em] md:text-[0.8em]
+ ${labelText}`}>BPM</span>
                                     </div>
                                 </div>
 
                                 {/* Stats cards - takes 3 columns */}
-                                <div className="col-span-3 grid grid-cols-3 gap-2">
+                                <div className="col-span-3 grid grid-cols-3 gap-1 ">
                                     {/* Low stat */}
                                     <div className={` rounded-lg flex flex-col items-center justify-center transition-colors duration-300`}>
-                                        <span className={`text-xs ${labelText}`}>LOW</span>
+                                        <span className={`text-[0.3em] sm:text-[0.4em] md:text-[0.5em] ${labelText}`}>LOW</span>
                                         <div className="flex items-baseline">
-                                            <span ref={lowRef} className={`text-lg font-semibold ${textPrimary}`}>--</span>
-                                            <span className={`ml-1 text-xs ${labelText}`}>BPM</span>
+                                            <span ref={lowRef} className={`text-[0.4em] sm:text-[0.5em] md:text-[0.6em] font-semibold ${textPrimary}`}>--</span>
+                                            <span className={`ml-1 text-[0.4em] sm:text-[0.5em] md:text-[0.6em] ${labelText}`}>BPM</span>
                                         </div>
                                     </div>
 
                                     {/* Avg stat */}
                                     <div className={` rounded-lg  flex flex-col items-center justify-center transition-colors duration-300 `}>
-                                        <span className={`text-xs ${labelText}`}>AVG</span>
+                                        <span className={`text-[0.3em] sm:text-[0.4em] md:text-[0.5em] ${labelText}`}>AVG</span>
                                         <div className="flex items-baseline">
-                                            <span ref={avgRef} className={`text-lg font-semibold ${primaryAccent}`}>--</span>
+                                            <span ref={avgRef} className={`text-[0.4em] sm:text-[0.5em] md:text-[0.6em] font-semibold ${primaryAccent}`}>--</span>
                                             <span className={`ml-1 text-xs ${labelText}`}>BPM</span>
                                         </div>
                                     </div>
 
                                     {/* High stat */}
                                     <div className={` rounded-lg flex flex-col items-center justify-center transition-colors duration-300`}>
-                                        <span className={`text-xs ${labelText}`}>HIGH</span>
+                                        <span className={`text-[0.3em] sm:text-[0.4em] md:text-[0.5em] ${labelText}`}>HIGH</span>
                                         <div className="flex items-baseline">
-                                            <span ref={highRef} className={`text-lg font-semibold ${textPrimary}`}>--</span>
+                                            <span ref={highRef} className={`text-[0.4em] sm:text-[0.5em] md:text-[0.6em] font-semibold ${textPrimary}`}>--</span>
                                             <span className={`ml-1 text-xs ${labelText}`}>BPM</span>
                                         </div>
                                     </div>
                                 </div>
                             </div>
 
-                            <div className="flex items-center gap-4 py-2">
+                            <div className="flex items-center gap-2 py-4">
                                 {/* Divider Line */}
                                 <div className="flex-1 h-px bg-stone-200 dark:bg-zinc-700" />
 
                                 {/* Divider Label */}
-                                <span className={`text-xs font-medium px-2 ${darkMode ? ' text-white' : 'text-black'} ${labelText}`}>
+                                <span className={`text-[0.3em] sm:text-[0.4em] md:text-[0.5em] font-medium px-2 ${darkMode ? ' text-white' : 'text-black'} ${labelText}`}>
                                     HEART RATE VARIABILITY
                                 </span>
 
@@ -611,32 +612,32 @@ export default function SignalVisualizer() {
 
                             {/* ── Middle Section: HRV stats ── */}
                             <div className="grid grid-cols-4 gap-1 px-3">
-                                <div className={`flex flex-col items-center ${statCardBg} rounded-md py-1`}>
-                                    <span className={`text-xs ${labelText}`}>LATEST</span>
+                                <div className={`flex flex-col items-center ${statCardBg} rounded-md py-2`}>
+                                    <span className={`text-[0.3em] sm:text-[0.4em] md:text-[0.5em] ${labelText}`}>LATEST</span>
                                     <div className="flex items-baseline">
-                                        <span ref={hrvRef} className={`text-sm font-semibold ${secondaryAccent}`}>--</span>
+                                        <span ref={hrvRef} className={`text-[0.4em] sm:text-[0.5em] md:text-[0.6em] font-semibold ${secondaryAccent}`}>--</span>
                                         <span className={`ml-1 text-xs ${labelText}`}>ms</span>
                                     </div>
                                 </div>
 
-                                <div className={`flex flex-col items-center ${statCardBg} rounded-md py-1`}>
-                                    <span className={`text-xs ${labelText}`}>LOW</span>
+                                <div className={`flex flex-col items-center ${statCardBg} rounded-md py-2`}>
+                                    <span className={`text-[0.3em] sm:text-[0.4em] md:text-[0.5em] ${labelText}`}>LOW</span>
                                     <div className="flex items-baseline">
-                                        <span ref={hrvLowRef} className={`text-sm font-semibold ${textPrimary}`}>--</span>
+                                        <span ref={hrvLowRef} className={`text-[0.4em] sm:text-[0.5em] md:text-[0.6em] font-semibold ${textPrimary}`}>--</span>
                                         <span className={`ml-1 text-xs ${labelText}`}>ms</span>
                                     </div>
                                 </div>
 
-                                <div className={`flex flex-col items-center ${statCardBg} rounded-md py-1`}>
-                                    <span className={`text-xs ${labelText}`}>AVG</span>
+                                <div className={`flex flex-col items-center ${statCardBg} rounded-md py-2`}>
+                                    <span className={`text-[0.3em] sm:text-[0.4em] md:text-[0.5em] ${labelText}`}>AVG</span>
                                     <div className="flex items-baseline">
                                         <span ref={hrvAvgRef} className={`text-sm font-semibold ${primaryAccent}`}>--</span>
                                         <span className={`ml-1 text-xs ${labelText}`}>ms</span>
                                     </div>
                                 </div>
 
-                                <div className={`flex flex-col items-center ${statCardBg} rounded-md py-1`}>
-                                    <span className={`text-xs ${labelText}`}>HIGH</span>
+                                <div className={`flex flex-col items-center ${statCardBg} rounded-md py-2`}>
+                                    <span className={`text-[0.3em] sm:text-[0.4em] md:text-[0.5em] ${labelText}`}>HIGH</span>
                                     <div className="flex items-baseline">
                                         <span ref={hrvHighRef} className={`text-sm font-semibold ${textPrimary}`}>--</span>
                                         <span className={`ml-1 text-xs ${labelText}`}>ms</span>
