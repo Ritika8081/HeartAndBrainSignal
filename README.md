@@ -35,12 +35,3 @@ The easiest way to deploy your Next.js app is to use the [Vercel Platform](https
 
 Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
 
-## Contributors
-
-Thank you for contributing to our project! Your support is invaluable in creating & enhancing Meditation_Medusa making it even better. 😊
-
-<center>
-<a href="https://github.com/Ritika8081/Meditation_Medusa/graphs/contributors">
-  <img src="https://contrib.rocks/image?repo=Ritika8081/Meditation_Medusa" />
-</a>
-</center>
