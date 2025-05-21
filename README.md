@@ -40,7 +40,7 @@ Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/bui
 Thank you for contributing to our project! Your support is invaluable in creating & enhancing Chords-Web and making it even better. 😊
 
 <center>
-<a href="https://github.com/upsidedownlabs/Chords-Web/graphs/contributors">
-  <img src="https://contrib.rocks/image?repo=upsidedownlabs/Chords-Web" />
+<a href="https://github.com/Ritika8081/Meditation_Medusa/graphs/contributors">
+  <img src="https://contrib.rocks/image?repo=Ritika8081/Meditation_Medusa" />
 </a>
 </center>
