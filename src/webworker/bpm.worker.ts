@@ -88,9 +88,28 @@ const computeBPMStats = (
     if (rrIntervals.length > 1) {
         const meanRR = avgRR;
 
-        // SDNN
-        const variance = rrIntervals.reduce((sum, val) => sum + Math.pow(val - meanRR, 2), 0) / (rrIntervals.length - 1);
-        sdnn = Math.sqrt(variance);
+        // // SDNN
+        // const variance = rrIntervals.reduce((sum, val) => sum + Math.pow(val - meanRR, 2), 0) / (rrIntervals.length - 1);
+        // sdnn = Math.sqrt(variance);
+        /** 
+ * Given an array of successive RR intervals (in ms), 
+ * compute standard deviation (SDNN). 
+ */
+        function computeSDNN(rrIntervals: number[]): number {
+            const n = rrIntervals.length;
+            if (n < 2) return 0;
+          
+            const mean = rrIntervals.reduce((a, b) => a + b, 0) / n;
+            const sumSq = rrIntervals
+              .map(x => (x - mean) ** 2)
+              .reduce((a, b) => a + b, 0);
+          
+            // Use (n - 1) for an unbiased estimate
+            const variance = sumSq / (n - 1);
+            return Math.sqrt(variance);
+          }
+          
+ sdnn = computeSDNN(rrIntervals);  
 
         // RMSSD and pNN50
         const diffs: number[] = [];

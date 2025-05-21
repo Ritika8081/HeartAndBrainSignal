@@ -19,6 +19,7 @@ import HRVPlotCanvas, { HRVPlotCanvasHandle } from '@/components/Hrvwebglplot'
 import BrainSplitVisualizer from '@/components/BrainSplit';
 import { StateIndicator, State } from "@/components/StateIndicator";
 import { predictState } from "@/lib/stateClassifier";
+import { useRouter } from 'next/navigation';
 
 const CHANNEL_COLORS: Record<string, string> = {
     ch0: "#C29963", // EEG channel 0
@@ -55,7 +56,7 @@ export default function SignalVisualizer() {
     const hrvAvgRef = useRef<HTMLSpanElement>(null);
     const [hrvData, setHrvData] = useState<{ time: number; hrv: number }[]>([]);
     const hrvplotRef = useRef<HRVPlotCanvasHandle>(null);
-
+    const router = useRouter();
     const leftMV = useMotionValue(0);
     const rightMV = useMotionValue(0);
     // Create beating heart animation effect
@@ -207,9 +208,12 @@ export default function SignalVisualizer() {
                 hrvHigh: number | null;
                 hrvLow: number | null;
                 hrvAvg: number | null;
+                sdnn: number;      // true SDNN from worker
+                rmssd: number;     // latest RMSSD from worker
+                pnn50: number;     // pNN50 from worker
             }>
         ) => {
-            const { bpm, high, low, avg, hrv, hrvHigh, hrvLow, hrvAvg } = e.data;
+            const { bpm, high, low, avg, hrv, hrvHigh, hrvLow, hrvAvg, sdnn, rmssd, pnn50 } = e.data;
 
             console.log(
                 `BPM: current=${bpm}, low=${low}, high=${high}, avg=${avg}; ` +
@@ -247,10 +251,7 @@ export default function SignalVisualizer() {
             if (hrvLowRef.current) hrvLowRef.current.textContent = hrvLow !== null ? `${hrvLow}` : "--";
             if (hrvAvgRef.current) hrvAvgRef.current.textContent = hrvAvg !== null ? `${hrvAvg}` : "--";
 
-            // classify current state
-            const sdnn = hrvHigh ?? 0;
-            const rmssd = hrv ?? 0;
-            const pnn50 = 0; // placeholder if available
+
             const state = predictState({ sdnn, rmssd, pnn50 });
             setUserState(state);
         };
@@ -380,6 +381,7 @@ export default function SignalVisualizer() {
                                     <span className={`text-xs ${textSecondary}`}>Sample Lost</span>
                                     <span className={`font-medium text-xs ${textPrimary}`}>27</span>
                                 </div>
+
                             </div>
                         </div>
                     </div>
