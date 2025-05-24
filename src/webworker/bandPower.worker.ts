@@ -104,9 +104,12 @@ self.onmessage = (e: MessageEvent<{
   smoother0.updateAll(rel0);
   smoother1.updateAll(rel1);
 
+
   // pull out smoothed values
   const smooth0 = smoother0.getAll();
   const smooth1 = smoother1.getAll();
+
+  console.log("smooth0", smooth0, "smooth1", smooth1);
 
   // send back smoothed, relative band powers
   self.postMessage({ smooth0, smooth1 });

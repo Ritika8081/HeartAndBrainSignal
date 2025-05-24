@@ -20,6 +20,7 @@ import BrainSplitVisualizer from '@/components/BrainSplit';
 import { StateIndicator, State } from "@/components/StateIndicator";
 import { predictState } from "@/lib/stateClassifier";
 import { useRouter } from 'next/navigation';
+import { MeditationSession } from '../components/MeditationSession';
 
 const CHANNEL_COLORS: Record<string, string> = {
     ch0: "#C29963", // EEG channel 0
@@ -59,6 +60,20 @@ export default function SignalVisualizer() {
     const router = useRouter();
     const leftMV = useMotionValue(0);
     const rightMV = useMotionValue(0);
+    // onNewECG: buffer ECG and every 500 samples (1 s) send to BPM worker ---
+    const ecgBufRef = useRef<number[]>([]);
+    const [viewMode, setViewMode] = useState<"radar" | "meditation">("radar");
+    const [selectedGoal, setSelectedGoal] = useState<"anxiety" | "meditation" | "sleep">("anxiety");
+
+    const selectedGoalRef = useRef(selectedGoal);
+
+    useEffect(() => {
+        selectedGoalRef.current = selectedGoal;
+    }, [selectedGoal]);
+
+    const [calmScore, setCalmScore] = useState<number | null>(null);
+    const sessionDataRef = useRef<{ timestamp: number; alpha: number; beta: number; theta: number; delta: number, symmetry: number }[]>([]);
+
     // Create beating heart animation effect
     useEffect(() => {
         const interval = setInterval(() => {
@@ -113,6 +128,7 @@ export default function SignalVisualizer() {
                 canvasecgRef.current?.updateData([counter, ecg, 3]);
                 onNewSample(eeg0, eeg1); // For radar charts
             }
+
         };
         dataProcessorWorkerRef.current = worker;
         return () => worker.terminate();
@@ -123,6 +139,7 @@ export default function SignalVisualizer() {
             new URL("../webworker/bandPower.worker.ts", import.meta.url),
             { type: "module" }
         );
+
         w.onmessage = (
             e: MessageEvent<{
                 smooth0: Record<string, number>;
@@ -131,49 +148,92 @@ export default function SignalVisualizer() {
         ) => {
             const { smooth0, smooth1 } = e.data;
 
+            // Radar data
             leftMV.set(smooth0.beta);
             rightMV.set(smooth1.beta);
+
+            function capitalize(subject: string): string {
+                return subject.charAt(0).toUpperCase() + subject.slice(1);
+            }
 
             radarDataCh0Ref.current = Object.entries(smooth0).map(
                 ([subject, value]) => ({ subject: capitalize(subject), value })
             );
 
-            function capitalize(str: string): string {
-                return str.charAt(0).toUpperCase() + str.slice(1);
-            }
             radarDataCh1Ref.current = Object.entries(smooth1).map(
                 ([subject, value]) => ({ subject: capitalize(subject), value })
             );
-            // setTick(t => t + 1);
+
+            let score = 0;
+            const goal = selectedGoalRef.current;
+
+            if (goal === "anxiety") {
+                score = (smooth0.alpha + smooth1.alpha) / (smooth0.beta + smooth1.beta + 0.001);
+            } else if (goal === "meditation") {
+                score = (smooth0.theta + smooth1.theta) / 2;
+            } else if (goal === "sleep") {
+                score = (smooth0.delta + smooth1.delta) / 2;
+            }
+            const alphaDiff = smooth0.alpha - smooth1.alpha;
+            const betaDiff = smooth0.beta - smooth1.beta;
+            console.log("Alpha symmetry (L-R):", alphaDiff.toFixed(3), "Beta diff:", betaDiff.toFixed(3));
+
+            const currentData = {
+                timestamp: Date.now(),
+                alpha: (smooth0.alpha + smooth1.alpha) / 2,
+                beta: (smooth0.beta + smooth1.beta) / 2,
+                theta: (smooth0.theta + smooth1.theta) / 2,
+                delta: (smooth0.delta + smooth1.delta) / 2,
+                symmetry: smooth0.alpha - smooth1.alpha,
+            };
+
+            sessionDataRef.current.push(currentData);
+
+            setCalmScore(score);
+
+            sessionDataRef.current.push({
+                timestamp: Date.now(),
+                alpha: (smooth0.alpha + smooth1.alpha) / 2,
+                beta: (smooth0.beta + smooth1.beta) / 2,
+                theta: (smooth0.theta + smooth1.theta) / 2,
+                delta: (smooth0.delta + smooth1.delta) / 2,
+                symmetry: smooth0.alpha - smooth1.alpha, // new
+            });
+
         };
+
         workerRef.current = w;
+
         return () => {
             w.terminate();
         };
     }, []);
 
+
     const onNewSample = useCallback((eeg0: number, eeg1: number) => {
+        // Push new samples
         buf0Ref.current.push(eeg0);
         buf1Ref.current.push(eeg1);
-        if (buf0Ref.current.length > 256) buf0Ref.current.shift();
-        if (buf1Ref.current.length > 256) buf1Ref.current.shift();
 
+        // If we have at least 256 samples, process FFT
         if (buf0Ref.current.length === 256) {
             workerRef.current?.postMessage({
-                eeg0: buf0Ref.current,
-                eeg1: buf1Ref.current,
+                eeg0: [...buf0Ref.current], // Send a copy
+                eeg1: [...buf1Ref.current],
                 sampleRate: 500,
                 fftSize: 256,
             });
+
+            // Slide window by 5 samples
+            buf0Ref.current.splice(0, 16);
+            buf1Ref.current.splice(0, 16);
         }
     }, []);
 
-    // onNewECG: buffer ECG and every 500 samples (1 s) send to BPM worker ---
-    const ecgBufRef = useRef<number[]>([]);
 
     const onNewECG = useCallback((ecg: number) => {
         ecgBufRef.current.push(ecg);
-        // keep last 5 s @500 Hz = 2500 samples
+        // keep last 4 s @500 Hz = 2500 samples
         if (ecgBufRef.current.length > 2500) {
             ecgBufRef.current.shift();
         }
@@ -280,6 +340,14 @@ export default function SignalVisualizer() {
             dp.removeEventListener("message", handler);
         };
     }, [onNewSample, onNewECG]);
+
+
+    const InsightCard = ({ label, value }: { label: string; value: React.ReactNode }) => (
+        <div className="bg-gray-50 dark:bg-zinc-700/30 p-3 rounded-lg shadow-inner">
+            <div className="text-xs text-gray-500 dark:text-gray-400 mb-1">{label}</div>
+            <div className="font-medium text-sm text-gray-800 dark:text-gray-200">{value}</div>
+        </div>
+    );
 
     const bgGradient = darkMode
         ? "bg-gradient-to-b from-zinc-900 to-neutral-900"
@@ -392,7 +460,7 @@ export default function SignalVisualizer() {
                         <div className={`rounded-xl shadow-md py-2 px-3 border ${cardBg} flex items-center justify-center transition-colors duration-300 flex-none`} style={{ height: "80px" }}>
                             <div className="flex items-center">
                                 <div className={`p-2 rounded-full  duration-300 mr-3 px-8`}>
-                                    <BrainSplitVisualizer leftMotion={leftMV} rightMotion={rightMV} size={45} />
+                                    {/* <BrainSplitVisualizer leftMotion={leftMV} rightMotion={rightMV} size={45} /> */}
                                 </div>
                                 <div>
                                     <h2 className={`text-lg font-semibold ${textPrimary}`}>
@@ -405,93 +473,159 @@ export default function SignalVisualizer() {
                             </div>
                         </div>
 
-                        {/* EEG Row 2: Spider Plot - 40% height */}
+                        {/* EEG Row 2: Mode Selector + Content Block */}
                         <div className={`rounded-xl shadow-md p-3 border ${cardBg} transition-colors duration-300 h-2/5 min-h-0 overflow-hidden`}>
-                            {/* Charts container */}
-                            <div className="flex flex-row h-full">
-                                {/* Left chart: Channel 0 */}
-                                <div className="flex-1 pr-2 flex flex-col h-full">
-                                    <div className="flex-1 h-full">
-                                        <ResponsiveContainer width="100%" height="100%">
-                                            <RadarChart
-                                                data={
-                                                    radarDataCh0Ref.current.length
-                                                        ? radarDataCh0Ref.current
-                                                        : bandData
-                                                }
-                                                cx="50%"
-                                                cy="50%"
-                                                outerRadius="70%"
-                                            >
-                                                <PolarGrid strokeDasharray="3 3" stroke={gridLines} />
-                                                <PolarAngleAxis
-                                                    dataKey="subject"
-                                                    tick={{ fill: axisColor, fontSize: 12 }}
-                                                />
-                                                <PolarRadiusAxis
-                                                    domain={[0, "auto"]}
-                                                    tick={false}
-                                                    axisLine={false}
-                                                    tickLine={false}
-                                                />
-                                                <Radar
-                                                    name="Ch0"
-                                                    dataKey="value"
-                                                    stroke={channelColors.ch0}
-                                                    fill={channelColors.ch0}
-                                                    fillOpacity={0.6}
-                                                />
-                                            </RadarChart>
-                                        </ResponsiveContainer>
+
+                            {/* Mode toggle buttons */}
+                            <div className="flex justify-center gap-4 mb-3">
+                                <button
+                                    className={`px-4 py-1 rounded-full text-sm font-medium ${viewMode === "radar" ? "bg-blue-600 text-white" : "bg-gray-200 text-gray-700"
+                                        }`}
+                                    onClick={() => setViewMode("radar")}
+                                >
+                                    Radar
+                                </button>
+                                <button
+                                    className={`px-4 py-1 rounded-full text-sm font-medium ${viewMode === "meditation" ? "bg-blue-600 text-white" : "bg-gray-200 text-gray-700"
+                                        }`}
+                                    onClick={() => setViewMode("meditation")}
+                                >
+                                    Meditation
+                                </button>
+                            </div>
+
+                            {/* Conditional rendering based on selected mode */}
+                            {viewMode === "radar" ? (
+                                <div className="flex flex-row h-full">
+                                    {/* Left chart: Channel 0 */}
+                                    <div className="flex-1 pr-2 flex flex-col h-full">
+                                        <div className="flex-1 h-full">
+                                            <ResponsiveContainer width="100%" height="100%">
+                                                <RadarChart
+                                                    data={radarDataCh0Ref.current.length ? radarDataCh0Ref.current : bandData}
+                                                    cx="50%" cy="50%" outerRadius="70%"
+                                                >
+                                                    <PolarGrid strokeDasharray="3 3" stroke={gridLines} />
+                                                    <PolarAngleAxis dataKey="subject" tick={{ fill: axisColor, fontSize: 12 }} />
+                                                    <PolarRadiusAxis domain={[0, "auto"]} tick={false} axisLine={false} tickLine={false} />
+                                                    <Radar name="Ch0" dataKey="value" stroke={channelColors.ch0} fill={channelColors.ch0} fillOpacity={0.6} />
+                                                </RadarChart>
+                                            </ResponsiveContainer>
+                                        </div>
+                                        <div className="text-center mt-2 text-sm" style={{ color: axisColor }}>
+                                            Synaptic Swing (L)
+                                        </div>
                                     </div>
-                                    {/* Heading below Channel 0 chart */}
-                                    <div className="text-center mt-2 text-sm" style={{ color: axisColor }}>
-                                        Synaptic Swing (L)
+
+                                    {/* Right chart: Channel 1 */}
+                                    <div className="flex-1 pl-2 flex flex-col h-full">
+                                        <div className="flex-1 h-full">
+                                            <ResponsiveContainer width="100%" height="100%">
+                                                <RadarChart
+                                                    data={radarDataCh1Ref.current.length ? radarDataCh1Ref.current : bandData}
+                                                    cx="50%" cy="50%" outerRadius="70%"
+                                                >
+                                                    <PolarGrid strokeDasharray="3 3" stroke={gridLines} />
+                                                    <PolarAngleAxis dataKey="subject" tick={{ fill: axisColor, fontSize: 12 }} />
+                                                    <PolarRadiusAxis domain={[0, "auto"]} tick={false} axisLine={false} tickLine={false} />
+                                                    <Radar name="Ch1" dataKey="value" stroke={channelColors.ch1} fill={channelColors.ch1} fillOpacity={0.6} />
+                                                </RadarChart>
+                                            </ResponsiveContainer>
+                                        </div>
+                                        <div className="text-center mt-2 text-sm" style={{ color: axisColor }}>
+                                            Synaptic Swing (R)
+                                        </div>
                                     </div>
+                                </div>
+                            ) : (
+                                <div className="bg-white dark:bg-zinc-800 border border-gray-200 dark:border-zinc-700 rounded-xl w-full h-full transition-colors duration-300 flex flex-col justify-between">
+                                    {/* Meditation Section */}
+                                    <div className="flex flex-col h-full w-full overflow-hidden">
+                                        <div className="flex-1 min-h-0 overflow-y-auto px-1">
+                                            <MeditationSession
+                                                onStartSession={() => {
+                                                    sessionDataRef.current = [];
+                                                }}
+                                                onEndSession={() => { }}
+                                                sessionData={sessionDataRef.current}
+                                                darkMode={darkMode}
+                                                renderSessionResults={(results) => (
+                                                    <div className="flex flex-col w-full space-y-4">
+                                                        {/* Wave Durations */}
+                                                        <div className="flex flex-wrap justify-between gap-2 w-full items-stretch">
+                                                            {/* Brainwave Durations */}
+                                                            {Object.entries(results.dominantBands).map(([band, ticks]) => (
+                                                                <div
+                                                                    key={band}
+                                                                    className={`flex-1 min-w-[75px] max-w-[120px] p-2  text-center ${band === results.mostFrequent
+                                                                        ? "border-yellow-400 bg-yellow-50/50 dark:bg-yellow-900/20"
+                                                                        : "border-gray-200 dark:border-zinc-700"
+                                                                        }`}
+                                                                >
+                                                                    <div className="text-sm sm:text-xs text-gray-500 dark:text-gray-400 uppercase">
+                                                                        {band}
+                                                                    </div>
+                                                                    <div className="text-sm font-semibold text-gray-800 dark:text-gray-200">
+                                                                        {results.convert(ticks)} min
+                                                                    </div>
+                                                                </div>
+                                                            ))}
+
+                                                            {/* Dominant State */}
+                                                            <div className=" min-w-[110px] max-w-[160px]  text-center bg-gray-50 dark:bg-zinc-700/30 border-gray-200 dark:border-zinc-700">
+                                                                <div className="text-[10px] sm:text-xs text-gray-500 dark:text-gray-400 mb-1 uppercase">
+                                                                    Dominant
+                                                                </div>
+                                                                <div className="text-sm flex justify-center items-center gap-2 capitalize">
+                                                                    <div
+                                                                        className={`w-2 h-2 rounded-full ${results.mostFrequent === "alpha"
+                                                                            ? "bg-blue-500"
+                                                                            : results.mostFrequent === "beta"
+                                                                                ? "bg-yellow-500"
+                                                                                : results.mostFrequent === "theta"
+                                                                                    ? "bg-purple-500"
+                                                                                    : "bg-green-500"
+                                                                            }`}
+                                                                    />
+                                                                    {results.mostFrequent}
+                                                                </div>
+                                                            </div>
+
+                                                            {/* Session Duration */}
+                                                            <div className=" min-w-[110px] max-w-[160px] p-2  text-center bg-gray-50 dark:bg-zinc-700/30 border-gray-200 dark:border-zinc-700">
+                                                                <div className="text-[10px] sm:text-xs text-gray-500 dark:text-gray-400 mb-1 uppercase">
+                                                                    Duration
+                                                                </div>
+                                                                <div className="text-sm font-semibold">{results.duration}</div>
+                                                            </div>
+
+                                                            {/* Brain Symmetry */}
+                                                            <div className=" min-w-[130px] max-w-[180px] p-2  text-center bg-gray-50 dark:bg-zinc-700/30 border-gray-200 dark:border-zinc-700">
+                                                                <div className="text-[10px] sm:text-xs text-gray-500 dark:text-gray-400 mb-1 uppercase">
+                                                                    Symmetry
+                                                                </div>
+                                                                <div className="text-sm font-semibold">
+                                                                    {Math.abs(Number(results.avgSymmetry)) < 0.1
+                                                                        ? "Balanced"
+                                                                        : Number(results.avgSymmetry) > 0
+                                                                            ? "Left"
+                                                                            : "Right"}
+                                                                    <span className="text-xs text-gray-400 ml-1">({results.avgSymmetry})</span>
+                                                                </div>
+                                                            </div>
+                                                        </div>
+                                                    </div>
+                                                )}
+                                            />
+                                        </div>
+                                    </div>
+
                                 </div>
 
-                                {/* Right chart: Channel 1 */}
-                                <div className="flex-1 pl-2 flex flex-col h-full">
-                                    <div className="flex-1 h-full">
-                                        <ResponsiveContainer width="100%" height="100%">
-                                            <RadarChart
-                                                data={
-                                                    radarDataCh1Ref.current.length
-                                                        ? radarDataCh1Ref.current
-                                                        : bandData
-                                                }
-                                                cx="50%"
-                                                cy="50%"
-                                                outerRadius="70%"
-                                            >
-                                                <PolarGrid strokeDasharray="3 3" stroke={gridLines} />
-                                                <PolarAngleAxis
-                                                    dataKey="subject"
-                                                    tick={{ fill: axisColor, fontSize: 12 }}
-                                                />
-                                                <PolarRadiusAxis
-                                                    domain={[0, "auto"]}
-                                                    tick={false}
-                                                    axisLine={false}
-                                                    tickLine={false}
-                                                />
-                                                <Radar
-                                                    name="Ch1"
-                                                    dataKey="value"
-                                                    stroke={channelColors.ch1}
-                                                    fill={channelColors.ch1}
-                                                    fillOpacity={0.6}
-                                                />
-                                            </RadarChart>
-                                        </ResponsiveContainer>
-                                    </div>
-                                    {/* Heading below Channel 1 chart */}
-                                    <div className="text-center mt-2 text-sm" style={{ color: axisColor }}>
-                                        Synaptic Swing (R)
-                                    </div>
-                                </div>
-                            </div>
+
+                            )}
                         </div>
+
 
                         {/* EEG Row 3: EEG Charts - Remaining height */}
                         <div className="flex flex-col gap-3 h-flex-1 flex-1 min-h-0 overflow-hidden">
@@ -555,8 +689,7 @@ export default function SignalVisualizer() {
                                         <span ref={currentRef} className={`text-4xl font-bold ${secondaryAccent}`}>
                                             --
                                         </span>
-                                        <span className={`ml-2 text-[0.6em] sm:text-[0.7em] md:text-[0.8em]
- ${labelText}`}>BPM</span>
+                                        <span className={`ml-2 text-[0.6em] sm:text-[0.7em] md:text-[0.8em] ${labelText}`}>BPM</span>
                                     </div>
                                 </div>
 
@@ -684,3 +817,4 @@ export default function SignalVisualizer() {
         </div>
     );
 }
+
