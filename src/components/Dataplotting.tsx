@@ -73,6 +73,11 @@ export default function SignalVisualizer() {
 
     const [calmScore, setCalmScore] = useState<number | null>(null);
     const sessionDataRef = useRef<{ timestamp: number; alpha: number; beta: number; theta: number; delta: number, symmetry: number }[]>([]);
+    const SAMPLE_RATE = 500;
+    const FFT_SIZE = 256;
+    
+    const sampleCounterRef = useRef(0);
+    
 
     // Create beating heart animation effect
     useEffect(() => {
@@ -211,24 +216,27 @@ export default function SignalVisualizer() {
 
 
     const onNewSample = useCallback((eeg0: number, eeg1: number) => {
-        // Push new samples
-        buf0Ref.current.push(eeg0);
-        buf1Ref.current.push(eeg1);
-
-        // If we have at least 256 samples, process FFT
-        if (buf0Ref.current.length === 256) {
-            workerRef.current?.postMessage({
-                eeg0: [...buf0Ref.current], // Send a copy
-                eeg1: [...buf1Ref.current],
-                sampleRate: 500,
-                fftSize: 256,
-            });
-
-            // Slide window by 5 samples
-            buf0Ref.current.splice(0, 16);
-            buf1Ref.current.splice(0, 16);
-        }
+      buf0Ref.current.push(eeg0);
+      buf1Ref.current.push(eeg1);
+      sampleCounterRef.current++;
+    
+      // Maintain a rolling buffer of 256 samples
+      if (buf0Ref.current.length > FFT_SIZE) {
+        buf0Ref.current.shift();
+        buf1Ref.current.shift();
+      }
+    
+      // Run FFT every 10 samples (≈ every 20ms at 500Hz)
+      if (sampleCounterRef.current % 10 === 0 && buf0Ref.current.length === FFT_SIZE) {
+        workerRef.current?.postMessage({
+          eeg0: [...buf0Ref.current],
+          eeg1: [...buf1Ref.current],
+          sampleRate: SAMPLE_RATE,
+          fftSize: FFT_SIZE,
+        });
+      }
     }, []);
+    
 
 
     const onNewECG = useCallback((ecg: number) => {
@@ -341,13 +349,6 @@ export default function SignalVisualizer() {
         };
     }, [onNewSample, onNewECG]);
 
-
-    const InsightCard = ({ label, value }: { label: string; value: React.ReactNode }) => (
-        <div className="bg-gray-50 dark:bg-zinc-700/30 p-3 rounded-lg shadow-inner">
-            <div className="text-xs text-gray-500 dark:text-gray-400 mb-1">{label}</div>
-            <div className="font-medium text-sm text-gray-800 dark:text-gray-200">{value}</div>
-        </div>
-    );
 
     const bgGradient = darkMode
         ? "bg-gradient-to-b from-zinc-900 to-neutral-900"
@@ -473,75 +474,142 @@ export default function SignalVisualizer() {
                             </div>
                         </div>
 
-                        {/* EEG Row 2: Mode Selector + Content Block */}
-                        <div className={`rounded-xl shadow-md p-3 border ${cardBg} transition-colors duration-300 h-2/5 min-h-0 overflow-hidden`}>
+                        {/* EEG Row 2: Enhanced Mode Selector + Content Block */}
+                        <div className={`rounded-2xl shadow-lg p-1 border ${cardBg} transition-all duration-300 h-2/5 min-h-0 overflow-hidden backdrop-blur-sm flex flex-col`}>
 
-                            {/* Mode toggle buttons */}
-                            <div className="flex justify-center gap-4 mb-3">
-                                <button
-                                    className={`px-4 py-1 rounded-full text-sm font-medium ${viewMode === "radar" ? "bg-blue-600 text-white" : "bg-gray-200 text-gray-700"
-                                        }`}
-                                    onClick={() => setViewMode("radar")}
-                                >
-                                    Radar
-                                </button>
-                                <button
-                                    className={`px-4 py-1 rounded-full text-sm font-medium ${viewMode === "meditation" ? "bg-blue-600 text-white" : "bg-gray-200 text-gray-700"
-                                        }`}
-                                    onClick={() => setViewMode("meditation")}
-                                >
-                                    Meditation
-                                </button>
+
+                            {/* Enhanced Mode Toggle Buttons - Styled to match Connect/Disconnect theme */}
+                            <div className="flex justify-center gap-2 mb-1 py-1 mx-4">
+                                <div className="inline-flex rounded-xl p-1 mx-4 gap-4">
+                                    {/* Radar Button */}
+                                    <button
+                                        className={`px-4 py-1 rounded-lg text-xs font-semibold transition-all duration-300 border
+        ${viewMode === "radar"
+                                                ? "bg-[#548687] text-white shadow-md transform scale-105"
+                                                : "bg-white dark:bg-zinc-800 text-gray-600 dark:text-gray-300 hover:bg-[#7C9885] hover:text-white"
+                                            }`}
+                                        onClick={() => setViewMode("radar")}
+                                    >
+                                        <span className="flex items-center gap-1">
+                                            📡 Radar
+                                        </span>
+                                    </button>
+
+                                    {/* Meditation Button */}
+                                    <button
+                                        className={`px-4 py-1 rounded-lg text-xs font-semibold transition-all duration-300 border
+        ${viewMode === "meditation"
+                                                ? "bg-[#D9777B] text-white shadow-md transform scale-105"
+                                                : "bg-white dark:bg-zinc-800 text-gray-600 dark:text-gray-300 hover:bg-[#D9777B] hover:text-white"
+                                            }`}
+                                        onClick={() => setViewMode("meditation")}
+                                    >
+                                        <span className="flex items-center gap-1">
+                                            🧘 Session
+                                        </span>
+                                    </button>
+                                </div>
                             </div>
 
-                            {/* Conditional rendering based on selected mode */}
-                            {viewMode === "radar" ? (
-                                <div className="flex flex-row h-full">
-                                    {/* Left chart: Channel 0 */}
-                                    <div className="flex-1 pr-2 flex flex-col h-full">
-                                        <div className="flex-1 h-full">
-                                            <ResponsiveContainer width="100%" height="100%">
-                                                <RadarChart
-                                                    data={radarDataCh0Ref.current.length ? radarDataCh0Ref.current : bandData}
-                                                    cx="50%" cy="50%" outerRadius="70%"
-                                                >
-                                                    <PolarGrid strokeDasharray="3 3" stroke={gridLines} />
-                                                    <PolarAngleAxis dataKey="subject" tick={{ fill: axisColor, fontSize: 12 }} />
-                                                    <PolarRadiusAxis domain={[0, "auto"]} tick={false} axisLine={false} tickLine={false} />
-                                                    <Radar name="Ch0" dataKey="value" stroke={channelColors.ch0} fill={channelColors.ch0} fillOpacity={0.6} />
-                                                </RadarChart>
-                                            </ResponsiveContainer>
-                                        </div>
-                                        <div className="text-center mt-2 text-sm" style={{ color: axisColor }}>
-                                            Synaptic Swing (L)
-                                        </div>
-                                    </div>
 
-                                    {/* Right chart: Channel 1 */}
-                                    <div className="flex-1 pl-2 flex flex-col h-full">
-                                        <div className="flex-1 h-full">
-                                            <ResponsiveContainer width="100%" height="100%">
-                                                <RadarChart
-                                                    data={radarDataCh1Ref.current.length ? radarDataCh1Ref.current : bandData}
-                                                    cx="50%" cy="50%" outerRadius="70%"
-                                                >
-                                                    <PolarGrid strokeDasharray="3 3" stroke={gridLines} />
-                                                    <PolarAngleAxis dataKey="subject" tick={{ fill: axisColor, fontSize: 12 }} />
-                                                    <PolarRadiusAxis domain={[0, "auto"]} tick={false} axisLine={false} tickLine={false} />
-                                                    <Radar name="Ch1" dataKey="value" stroke={channelColors.ch1} fill={channelColors.ch1} fillOpacity={0.6} />
-                                                </RadarChart>
-                                            </ResponsiveContainer>
+                            {/* Enhanced Content Area - Flexible height */}
+                            <div className="flex-1 min-h-0 overflow-hidden">
+                                {viewMode === "radar" ? (
+                                    /* Radar View - Compact layout */
+                                    <div className="flex flex-row h-full gap-1 p-1">
+                                        {/* Left Chart */}
+                                        <div className="flex-1 flex flex-col h-full">
+                                            <div className=" rounded-lg p-6 h-full ">
+                                                <div className="h-full">
+                                                    <ResponsiveContainer width="100%" height="100%">
+                                                        <RadarChart
+                                                            data={radarDataCh0Ref.current.length ? radarDataCh0Ref.current : bandData}
+                                                            cx="50%" cy="50%" outerRadius="80%"
+                                                        >
+                                                            <PolarGrid
+                                                                strokeDasharray="2 3"
+                                                                stroke={gridLines}
+                                                                strokeOpacity={0.6}
+                                                            />
+                                                            <PolarAngleAxis
+                                                                dataKey="subject"
+                                                                tick={{ fill: axisColor, fontSize: 10, fontWeight: 500 }}
+                                                            />
+                                                            <PolarRadiusAxis
+                                                                domain={[0, "auto"]}
+                                                                tick={false}
+                                                                axisLine={false}
+                                                                tickLine={false}
+                                                            />
+                                                            <Radar
+                                                                name="Ch0"
+                                                                dataKey="value"
+                                                                stroke={channelColors.ch0}
+                                                                strokeWidth={1.5}
+                                                                fill={channelColors.ch0}
+                                                                fillOpacity={0.3}
+                                                                dot={{ fill: channelColors.ch0, strokeWidth: 1, r: 2 }}
+                                                            />
+                                                        </RadarChart>
+                                                    </ResponsiveContainer>
+                                                </div>
+                                                <div className="text-center mt-1">
+                                                    <div className={`text-xs font-semibold ${primaryAccent}`}>
+                                                        Left Hemisphere
+                                                    </div>
+                                                </div>
+                                            </div>
                                         </div>
-                                        <div className="text-center mt-2 text-sm" style={{ color: axisColor }}>
-                                            Synaptic Swing (R)
+
+                                        {/* Right Chart */}
+                                        <div className="flex-1 flex flex-col h-full">
+                                            <div className=" rounded-lg p-6 h-full ">
+                                                <div className="h-full">
+                                                    <ResponsiveContainer width="100%" height="100%">
+                                                        <RadarChart
+                                                            data={radarDataCh1Ref.current.length ? radarDataCh1Ref.current : bandData}
+                                                            cx="50%" cy="50%" outerRadius="80%"
+                                                        >
+                                                            <PolarGrid
+                                                                strokeDasharray="2 3"
+                                                                stroke={gridLines}
+                                                                strokeOpacity={0.6}
+                                                            />
+                                                            <PolarAngleAxis
+                                                                dataKey="subject"
+                                                                tick={{ fill: axisColor, fontSize: 10, fontWeight: 500 }}
+                                                            />
+                                                            <PolarRadiusAxis
+                                                                domain={[0, "auto"]}
+                                                                tick={false}
+                                                                axisLine={false}
+                                                                tickLine={false}
+                                                            />
+                                                            <Radar
+                                                                name="Ch1"
+                                                                dataKey="value"
+                                                                stroke={channelColors.ch1}
+                                                                strokeWidth={1.5}
+                                                                fill={channelColors.ch1}
+                                                                fillOpacity={0.3}
+                                                                dot={{ fill: channelColors.ch1, strokeWidth: 1, r: 2 }}
+                                                            />
+                                                        </RadarChart>
+                                                    </ResponsiveContainer>
+                                                </div>
+                                                <div className="text-center mt-1">
+                                                    <div className={`text-xs font-semibold ${primaryAccent}`}>
+                                                        Right Hemisphere
+                                                    </div>
+                                                </div>
+                                            </div>
                                         </div>
                                     </div>
-                                </div>
-                            ) : (
-                                <div className="bg-white dark:bg-zinc-800 border border-gray-200 dark:border-zinc-700 rounded-xl w-full h-full transition-colors duration-300 flex flex-col justify-between">
-                                    {/* Meditation Section */}
-                                    <div className="flex flex-col h-full w-full overflow-hidden">
-                                        <div className="flex-1 min-h-0 overflow-y-auto px-1">
+                                ) : (
+                                    /* Meditation View - Compact layout */
+                                    <div className="w-full h-full flex flex-col overflow-hidden ">
+                                        {/* Content */}
+                                        <div className="flex-1 min-h-0 overflow-hidden flex flex-col">
                                             <MeditationSession
                                                 onStartSession={() => {
                                                     sessionDataRef.current = [];
@@ -550,80 +618,89 @@ export default function SignalVisualizer() {
                                                 sessionData={sessionDataRef.current}
                                                 darkMode={darkMode}
                                                 renderSessionResults={(results) => (
-                                                    <div className="flex flex-col w-full space-y-4">
-                                                        {/* Wave Durations */}
-                                                        <div className="flex flex-wrap justify-between gap-2 w-full items-stretch">
-                                                            {/* Brainwave Durations */}
+                                                    <div className="flex flex-col gap-1">
+                                                        {/* Wave Durations - Compact grid */}
+                                                        <div className="grid grid-cols-4 gap-1 w-full">
                                                             {Object.entries(results.dominantBands).map(([band, ticks]) => (
                                                                 <div
                                                                     key={band}
-                                                                    className={`flex-1 min-w-[75px] max-w-[120px] p-2  text-center ${band === results.mostFrequent
-                                                                        ? "border-yellow-400 bg-yellow-50/50 dark:bg-yellow-900/20"
-                                                                        : "border-gray-200 dark:border-zinc-700"
+                                                                    className={`relative p-1 rounded-lg border transition-all ${band === results.mostFrequent
+                                                                            ? "border-yellow-400 bg-gradient-to-br from-yellow-50 to-yellow-100 dark:from-yellow-900/30 dark:to-yellow-800/30"
+                                                                            : "border-gray-200 dark:border-zinc-700 bg-white dark:bg-zinc-800/50"
                                                                         }`}
                                                                 >
-                                                                    <div className="text-sm sm:text-xs text-gray-500 dark:text-gray-400 uppercase">
-                                                                        {band}
-                                                                    </div>
-                                                                    <div className="text-sm font-semibold text-gray-800 dark:text-gray-200">
-                                                                        {results.convert(ticks)} min
+                                                                    {band === results.mostFrequent && (
+                                                                        <div className="absolute -top-1 -right-1 w-3 h-3 bg-yellow-400 rounded-full flex items-center justify-center">
+                                                                            <span className="text-[8px]">👑</span>
+                                                                        </div>
+                                                                    )}
+
+                                                                    <div className="text-center">
+                                                                        <div className={`text-[10px] font-semibold uppercase ${band === "alpha" ? "text-blue-600 dark:text-blue-400" :
+                                                                                band === "beta" ? "text-orange-600 dark:text-orange-400" :
+                                                                                    band === "theta" ? "text-purple-600 dark:text-purple-400" :
+                                                                                        "text-green-600 dark:text-green-400"
+                                                                            }`}>
+                                                                            {band}
+                                                                        </div>
+                                                                        <div className="text-xs font-bold text-gray-800 dark:text-gray-200">
+                                                                            {results.convert(ticks)}
+                                                                        </div>
                                                                     </div>
                                                                 </div>
                                                             ))}
+                                                        </div>
 
+                                                        {/* Summary Cards - Compact */}
+                                                        <div className="grid grid-cols-3 gap-1 w-full mt-1">
                                                             {/* Dominant State */}
-                                                            <div className=" min-w-[110px] max-w-[160px]  text-center bg-gray-50 dark:bg-zinc-700/30 border-gray-200 dark:border-zinc-700">
-                                                                <div className="text-[10px] sm:text-xs text-gray-500 dark:text-gray-400 mb-1 uppercase">
-                                                                    Dominant
-                                                                </div>
-                                                                <div className="text-sm flex justify-center items-center gap-2 capitalize">
-                                                                    <div
-                                                                        className={`w-2 h-2 rounded-full ${results.mostFrequent === "alpha"
-                                                                            ? "bg-blue-500"
-                                                                            : results.mostFrequent === "beta"
-                                                                                ? "bg-yellow-500"
-                                                                                : results.mostFrequent === "theta"
-                                                                                    ? "bg-purple-500"
-                                                                                    : "bg-green-500"
-                                                                            }`}
-                                                                    />
-                                                                    {results.mostFrequent}
+                                                            <div className="p-1 rounded-lg bg-gradient-to-br from-indigo-50 to-purple-50 dark:from-indigo-900/30 dark:to-purple-900/30 border border-indigo-200 dark:border-indigo-800/30">
+                                                                <div className="text-center">
+                                                                    <div className="text-[9px] font-semibold text-indigo-600 dark:text-indigo-400 uppercase">
+                                                                        Dominant
+                                                                    </div>
+                                                                    <div className="text-xs font-bold capitalize text-gray-800 dark:text-gray-200">
+                                                                        {results.mostFrequent}
+                                                                    </div>
                                                                 </div>
                                                             </div>
 
-                                                            {/* Session Duration */}
-                                                            <div className=" min-w-[110px] max-w-[160px] p-2  text-center bg-gray-50 dark:bg-zinc-700/30 border-gray-200 dark:border-zinc-700">
-                                                                <div className="text-[10px] sm:text-xs text-gray-500 dark:text-gray-400 mb-1 uppercase">
-                                                                    Duration
+                                                            {/* Duration */}
+                                                            <div className="p-1 rounded-lg bg-gradient-to-br from-blue-50 to-cyan-50 dark:from-blue-900/30 dark:to-cyan-900/30 border border-blue-200 dark:border-blue-800/30">
+                                                                <div className="text-center">
+                                                                    <div className="text-[9px] font-semibold text-blue-600 dark:text-blue-400 uppercase">
+                                                                        Duration
+                                                                    </div>
+                                                                    <div className="text-xs font-bold text-gray-800 dark:text-gray-200">
+                                                                        {results.duration}
+                                                                    </div>
                                                                 </div>
-                                                                <div className="text-sm font-semibold">{results.duration}</div>
                                                             </div>
 
-                                                            {/* Brain Symmetry */}
-                                                            <div className=" min-w-[130px] max-w-[180px] p-2  text-center bg-gray-50 dark:bg-zinc-700/30 border-gray-200 dark:border-zinc-700">
-                                                                <div className="text-[10px] sm:text-xs text-gray-500 dark:text-gray-400 mb-1 uppercase">
-                                                                    Symmetry
-                                                                </div>
-                                                                <div className="text-sm font-semibold">
-                                                                    {Math.abs(Number(results.avgSymmetry)) < 0.1
-                                                                        ? "Balanced"
-                                                                        : Number(results.avgSymmetry) > 0
-                                                                            ? "Left"
-                                                                            : "Right"}
-                                                                    <span className="text-xs text-gray-400 ml-1">({results.avgSymmetry})</span>
+                                                            {/* Symmetry */}
+                                                            <div className="p-1 rounded-lg bg-gradient-to-br from-emerald-50 to-teal-50 dark:from-emerald-900/30 dark:to-teal-900/30 border border-emerald-200 dark:border-emerald-800/30">
+                                                                <div className="text-center">
+                                                                    <div className="text-[9px] font-semibold text-emerald-600 dark:text-emerald-400 uppercase">
+                                                                        Symmetry
+                                                                    </div>
+                                                                    <div className="text-xs font-bold text-gray-800 dark:text-gray-200">
+                                                                        {Math.abs(Number(results.avgSymmetry)) < 0.1 ? "Balanced" :
+                                                                            Number(results.avgSymmetry) > 0 ? "Left" : "Right"}
+                                                                    </div>
                                                                 </div>
                                                             </div>
                                                         </div>
+
+                                                        {/* Spacer to push content up if there's extra space */}
+                                                        <div className="flex-1"></div>
                                                     </div>
                                                 )}
+                                                
                                             />
                                         </div>
                                     </div>
-
-                                </div>
-
-
-                            )}
+                                )}
+                            </div>
                         </div>
 
 
@@ -667,19 +744,11 @@ export default function SignalVisualizer() {
 
                                 </div>
                             </div>
-
                         </div>
 
                         {/* ECG Row 2: BPM + HRV Info - 40% height */}
                         <div
-                            className={`
-    ${cardBg}
-    rounded-xl shadow-md border
-    transition-colors duration-300
-    h-2/5 min-h-0 overflow-hidden
-    flex flex-col
-  `}
-                        >
+                            className={`${cardBg} rounded-xl shadow-md border transition-colors duration-300 h-2/5 min-h-0 overflow-hidden  flex flex-col`}>
                             {/* ── Top Section: Heart Rate Stats ── */}
                             <div className="grid grid-cols-5 gap-2 p-2">
                                 {/* Current BPM - takes 2 columns */}
@@ -778,14 +847,12 @@ export default function SignalVisualizer() {
                                 </div>
                             </div>
 
-
                             <div className={`h-30 min-h-[10px] w-full rounded-lg overflow-hidden px-2 `}>
                                 <HRVPlotCanvas
                                     ref={hrvplotRef}
                                     numPoints={2000}
                                     color={darkMode ? '#f59e0b' : '#d97706'}
                                 />
-
                             </div>
 
                         </div>
