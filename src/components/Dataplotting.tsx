@@ -64,6 +64,7 @@ export default function SignalVisualizer() {
     const ecgBufRef = useRef<number[]>([]);
     const [viewMode, setViewMode] = useState<"radar" | "meditation">("radar");
     const [selectedGoal, setSelectedGoal] = useState<"anxiety" | "meditation" | "sleep">("anxiety");
+    const [showResults, setShowResults] = useState(false);
 
     const selectedGoalRef = useRef(selectedGoal);
 
@@ -75,9 +76,9 @@ export default function SignalVisualizer() {
     const sessionDataRef = useRef<{ timestamp: number; alpha: number; beta: number; theta: number; delta: number, symmetry: number }[]>([]);
     const SAMPLE_RATE = 500;
     const FFT_SIZE = 256;
-    
+
     const sampleCounterRef = useRef(0);
-    
+
 
     // Create beating heart animation effect
     useEffect(() => {
@@ -216,27 +217,27 @@ export default function SignalVisualizer() {
 
 
     const onNewSample = useCallback((eeg0: number, eeg1: number) => {
-      buf0Ref.current.push(eeg0);
-      buf1Ref.current.push(eeg1);
-      sampleCounterRef.current++;
-    
-      // Maintain a rolling buffer of 256 samples
-      if (buf0Ref.current.length > FFT_SIZE) {
-        buf0Ref.current.shift();
-        buf1Ref.current.shift();
-      }
-    
-      // Run FFT every 10 samples (≈ every 20ms at 500Hz)
-      if (sampleCounterRef.current % 10 === 0 && buf0Ref.current.length === FFT_SIZE) {
-        workerRef.current?.postMessage({
-          eeg0: [...buf0Ref.current],
-          eeg1: [...buf1Ref.current],
-          sampleRate: SAMPLE_RATE,
-          fftSize: FFT_SIZE,
-        });
-      }
+        buf0Ref.current.push(eeg0);
+        buf1Ref.current.push(eeg1);
+        sampleCounterRef.current++;
+
+        // Maintain a rolling buffer of 256 samples
+        if (buf0Ref.current.length > FFT_SIZE) {
+            buf0Ref.current.shift();
+            buf1Ref.current.shift();
+        }
+
+        // Run FFT every 10 samples (≈ every 20ms at 500Hz)
+        if (sampleCounterRef.current % 10 === 0 && buf0Ref.current.length === FFT_SIZE) {
+            workerRef.current?.postMessage({
+                eeg0: [...buf0Ref.current],
+                eeg1: [...buf1Ref.current],
+                sampleRate: SAMPLE_RATE,
+                fftSize: FFT_SIZE,
+            });
+        }
     }, []);
-    
+
 
 
     const onNewECG = useCallback((ecg: number) => {
@@ -399,30 +400,24 @@ export default function SignalVisualizer() {
                     {/* First Column (20%) - Device Info */}
                     <div className="md:col-span-1 flex flex-col gap-3 h-full min-h-0 overflow-hidden">
                         {/* First card - device connection */}
-                        <div className={`rounded-xl shadow-md p-3 border ${cardBg} flex flex-col items-center transition-colors duration-300 h-1/2 min-h-0 overflow-hidden`}>
-                            {/* Main icon/content area */}
+                        <div className={`rounded-xl shadow-md p-3 border ${cardBg} flex flex-col items-center transition-colors duration-300 h-1/3 min-h-0 overflow-hidden`}>
                             <div className="flex-1 flex flex-col items-center justify-center w-full">
-                                {/* Centered icon wrapper */}
                                 <div className={`p-3 rounded-full mb-2 ${iconBoxBg} transition-colors duration-300`}>
                                     <Box className={primaryAccent} strokeWidth={1.5} />
                                 </div>
                             </div>
-
-                            {/* Buttons always at bottom */}
                             <div className="w-full flex justify-center mb-2 mt-auto">
                                 <button
                                     onClick={connect}
                                     disabled={connected}
-                                    className={`m-1 px-1 py-1.5 sm:px-2 sm:py-2 md:px-3 md:py-3 text-[0.6em] sm:text-[0.7em] md:text-[0.8em] rounded-xl font-semibold transition-colors duration-300 ${primaryAccent} ${cardBg} border
-                                    ${connected ? "bg-[#548687]" : "bg-[#7C9885]"}`}
+                                    className={`m-1 px-1 py-1.5 sm:px-2 sm:py-2 md:px-3 md:py-3 text-[0.6em] sm:text-[0.7em] md:text-[0.8em] rounded-xl font-semibold transition-colors duration-300 ${primaryAccent} ${cardBg} border ${connected ? "bg-[#548687]" : "bg-[#7C9885]"}`}
                                 >
                                     {connected ? "Connected" : "Connect"}
                                 </button>
                                 <button
                                     onClick={disconnect}
                                     disabled={!connected}
-                                    className={`m-1 px-1 py-1.5 sm:px-2 sm:py-2 md:px-3 md:py-3 text-[0.6em] sm:text-[0.7em] md:text-[0.8em] rounded-xl font-semibold transition-colors duration-300 ${primaryAccent} ${cardBg} border
-                                    ${connected ? "bg-[#D9777B] hover:bg-[#C7696D]" : "bg-gray-400 cursor-not-allowed"}`}
+                                    className={`m-1 px-1 py-1.5 sm:px-2 sm:py-2 md:px-3 md:py-3 text-[0.6em] sm:text-[0.7em] md:text-[0.8em] rounded-xl font-semibold transition-colors duration-300 ${primaryAccent} ${cardBg} border ${connected ? "bg-[#D9777B] hover:bg-[#C7696D]" : "bg-gray-400 cursor-not-allowed"}`}
                                 >
                                     {connected ? "Disconnect" : "Disconnected"}
                                 </button>
@@ -430,27 +425,154 @@ export default function SignalVisualizer() {
                         </div>
 
                         {/* Second card - device status */}
-                        <div className={`rounded-xl shadow-md p-3 border ${cardBg} flex flex-col transition-colors duration-300 h-1/2 min-h-0 overflow-hidden`}>
-                            {/* Device status */}
+                        <div className={`rounded-xl shadow-md p-3 border ${cardBg} flex flex-col transition-colors duration-300 h-1/4 min-h-0 overflow-hidden`}>
                             <h3 className={`text-base font-semibold mb-2 ${textPrimary}`}>Device Status</h3>
                             <div className={`flex items-center mb-2 ${textSecondary}`}>
                                 <div className="w-2 h-2 rounded-full bg-amber-400 mr-2"></div>
                                 <span className="text-sm">Connected</span>
                             </div>
                             <div className="space-y-2 flex-1 overflow-auto">
-                                <div className="flex justify-between items-center">
-                                    <span className={`text-xs ${textSecondary}`}>Address</span>
-                                    <span className={`font-medium text-xs ${textPrimary}`}>000</span>
-                                </div>
+
                                 <div className="flex justify-between items-center">
                                     <span className={`text-xs ${textSecondary}`}>SPS</span>
                                     <span className={`font-medium text-xs ${textPrimary}`}>500</span>
                                 </div>
-                                <div className="flex justify-between items-center">
-                                    <span className={`text-xs ${textSecondary}`}>Sample Lost</span>
-                                    <span className={`font-medium text-xs ${textPrimary}`}>27</span>
-                                </div>
 
+                            </div>
+                        </div>
+
+                        {/* Third card - Meditation View (Last Session Preview with Modal) */}
+                        <div className={`rounded-xl shadow-md p-3 border ${cardBg} flex flex-col transition-colors duration-300 h-1/3 min-h-0 overflow-hidden`}>
+                            <h3 className="text-base font-semibold mb-2 text-[#C29963]">Meditation</h3>
+                            <div className="flex-1 min-h-0 overflow-hidden flex flex-col">
+                                <MeditationSession
+                                    onStartSession={() => { sessionDataRef.current = []; }}
+                                    onEndSession={() => { }}
+                                    sessionData={sessionDataRef.current}
+                                    darkMode={darkMode}
+                                    renderSessionResults={(results) => (
+                                        <>
+                                            <button
+                                                onClick={() => setShowResults(true)}
+                                                className="mt-auto py-1 text-xs font-medium rounded bg-[#9A7197] text-white hover:bg-[#875981] transition-all"
+                                            >
+                                                View Last Results
+                                            </button>
+
+                                            {showResults && (
+                                                <div className="fixed inset-0 bg-black/40 backdrop-blur-sm flex items-center justify-center z-50">
+                                                    <div className="bg-white dark:bg-zinc-900 rounded-lg shadow-xl p-4 w-[90%] max-w-md overflow-y-auto max-h-[90vh]">
+                                                        <div className="flex justify-between items-center mb-2">
+                                                            <h4 className="text-sm font-semibold text-[#548687]">Session Complete: Meditation Insights</h4>
+                                                            <button
+                                                                onClick={() => setShowResults(false)}
+                                                                className="text-xs text-gray-600 dark:text-gray-300 hover:text-red-600"
+                                                            >
+                                                                ✕
+                                                            </button>
+                                                        </div>
+
+                                                        <div className="flex flex-col gap-1">
+                                                            {/* Highlight: Mental State */}
+                                                            <div className="text-xs font-semibold text-center text-[#548687]">
+                                                                {results.mostFrequent === 'alpha' ? '🧘 Relaxation' :
+                                                                    results.mostFrequent === 'theta' ? '🛌 Deep Meditation' :
+                                                                        results.mostFrequent === 'beta' ? '🎯 Focus' :
+                                                                            results.mostFrequent === 'delta' ? '💤 Sleep' : '⚪ Neutral'}
+                                                            </div>
+
+                                                            {/* Brainwave Durations */}
+                                                            <div className="grid grid-cols-4 gap-1">
+                                                                {Object.entries(results.dominantBands).map(([band, ticks]) => (
+                                                                    <div
+                                                                        key={band}
+                                                                        className={`relative p-1 rounded-lg border transition-all ${band === results.mostFrequent
+                                                                            ? "border-yellow-400 bg-gradient-to-br from-yellow-50 to-yellow-100 dark:from-yellow-900/30 dark:to-yellow-800/30"
+                                                                            : "border-gray-200 dark:border-zinc-700 bg-white dark:bg-zinc-800/50"
+                                                                            }`}
+                                                                    >
+                                                                        {band === results.mostFrequent && (
+                                                                            <div className="absolute -top-1 -right-1 w-3 h-3 bg-yellow-400 rounded-full flex items-center justify-center">
+                                                                                <span className="text-[8px]">👑</span>
+                                                                            </div>
+                                                                        )}
+
+                                                                        <div className="text-center">
+                                                                            <div className={`text-[10px] font-semibold uppercase ${band === "alpha" ? "text-blue-600 dark:text-blue-400" :
+                                                                                band === "beta" ? "text-orange-600 dark:text-orange-400" :
+                                                                                    band === "theta" ? "text-purple-600 dark:text-purple-400" :
+                                                                                        band === "delta" ? "text-green-600 dark:text-green-400" : "text-gray-600 dark:text-gray-300"}`}>
+                                                                                {band}
+                                                                            </div>
+                                                                            <div className="text-xs font-bold text-gray-800 dark:text-gray-200">
+                                                                                {results.convert(ticks)}
+                                                                            </div>
+                                                                        </div>
+                                                                    </div>
+                                                                ))}
+                                                            </div>
+
+                                                            {/* Summary Grid */}
+                                                            <div className="grid grid-cols-3 gap-1 w-full mt-1">
+                                                                <div className="p-1 rounded-lg bg-indigo-100 dark:bg-indigo-900/20 border border-indigo-300 dark:border-indigo-800 text-center">
+                                                                    <div className="text-[9px] font-semibold text-indigo-600 dark:text-indigo-400 uppercase">Dominant</div>
+                                                                    <div className="text-xs font-bold capitalize text-gray-800 dark:text-gray-200">{results.mostFrequent}</div>
+                                                                </div>
+                                                                <div className="p-1 rounded-lg bg-cyan-100 dark:bg-cyan-900/20 border border-blue-300 dark:border-blue-800 text-center">
+                                                                    <div className="text-[9px] font-semibold text-blue-600 dark:text-blue-400 uppercase">Duration</div>
+                                                                    <div className="text-xs font-bold text-gray-800 dark:text-gray-200">{results.duration}</div>
+                                                                </div>
+                                                                <div className="p-1 rounded-lg bg-emerald-100 dark:bg-emerald-900/20 border border-emerald-300 dark:border-emerald-800 text-center">
+                                                                    <div className="text-[9px] font-semibold text-emerald-600 dark:text-emerald-400 uppercase">Symmetry</div>
+                                                                    <div className="text-xs font-bold text-gray-800 dark:text-gray-200">
+                                                                        {Math.abs(Number(results.avgSymmetry)) < 0.1 ? "Balanced" :
+                                                                            Number(results.avgSymmetry) > 0 ? "Left" : "Right"}
+                                                                    </div>
+                                                                </div>
+                                                            </div>
+
+                                                            {/* Summary Message */}
+
+                                                            <div className="mt-2 rounded-lg border border-yellow-300 bg-yellow-50 dark:bg-yellow-900/20 dark:border-yellow-700 text-xs font-medium text-yellow-800 dark:text-yellow-100 p-2">
+                                                                {(() => {
+                                                                    const alphaTicks = results.dominantBands.alpha ?? 0;
+                                                                    const thetaTicks = results.dominantBands.theta ?? 0;
+                                                                    const betaTicks = results.dominantBands.beta ?? 0;
+                                                                    const deltaTicks = results.dominantBands.delta ?? 0;
+                                                                    const totalTicks = alphaTicks + thetaTicks + betaTicks + deltaTicks;
+
+                                                                    const alphaPct = ((alphaTicks / totalTicks) * 100).toFixed(1);
+                                                                    const thetaPct = ((thetaTicks / totalTicks) * 100).toFixed(1);
+                                                                    const betaPct = ((betaTicks / totalTicks) * 100).toFixed(1);
+
+                                                                    const dominantText = results.mostFrequent === "alpha"
+                                                                        ? "a calm, relaxed state"
+                                                                        : results.mostFrequent === "theta"
+                                                                            ? "a deeply meditative state"
+                                                                            : results.mostFrequent === "beta"
+                                                                                ? "an alert or slightly stressed state"
+                                                                                : "a sleepy, resting state";
+
+                                                                    const symmetry = Math.abs(Number(results.avgSymmetry)) < 0.05
+                                                                        ? "balanced"
+                                                                        : Number(results.avgSymmetry) > 0
+                                                                            ? `left hemisphere was slightly dominant (α=${alphaPct}%)`
+                                                                            : `right hemisphere was slightly dominant (β=${betaPct}%)`;
+
+                                                                    const feedback = Number(betaPct) > 25
+                                                                        ? "Try reducing beta activity next time for deeper calm."
+                                                                        : "You're doing great—keep practicing regularly!";
+
+                                                                    return `You stayed in ${dominantText} for ${results.duration}, with strong alpha-theta presence (α=${alphaPct}%, θ=${thetaPct}%). Your ${symmetry}. ${feedback}`;
+                                                                })()}
+                                                            </div>
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                            )}
+                                        </>
+                                    )}
+                                />
                             </div>
                         </div>
                     </div>
@@ -477,229 +599,99 @@ export default function SignalVisualizer() {
                         {/* EEG Row 2: Enhanced Mode Selector + Content Block */}
                         <div className={`rounded-2xl shadow-lg p-1 border ${cardBg} transition-all duration-300 h-2/5 min-h-0 overflow-hidden backdrop-blur-sm flex flex-col`}>
 
-
-                            {/* Enhanced Mode Toggle Buttons - Styled to match Connect/Disconnect theme */}
-                            <div className="flex justify-center gap-2 mb-1 py-1 mx-4">
-                                <div className="inline-flex rounded-xl p-1 mx-4 gap-4">
-                                    {/* Radar Button */}
-                                    <button
-                                        className={`px-4 py-1 rounded-lg text-xs font-semibold transition-all duration-300 border
-        ${viewMode === "radar"
-                                                ? "bg-[#548687] text-white shadow-md transform scale-105"
-                                                : "bg-white dark:bg-zinc-800 text-gray-600 dark:text-gray-300 hover:bg-[#7C9885] hover:text-white"
-                                            }`}
-                                        onClick={() => setViewMode("radar")}
-                                    >
-                                        <span className="flex items-center gap-1">
-                                            📡 Radar
-                                        </span>
-                                    </button>
-
-                                    {/* Meditation Button */}
-                                    <button
-                                        className={`px-4 py-1 rounded-lg text-xs font-semibold transition-all duration-300 border
-        ${viewMode === "meditation"
-                                                ? "bg-[#D9777B] text-white shadow-md transform scale-105"
-                                                : "bg-white dark:bg-zinc-800 text-gray-600 dark:text-gray-300 hover:bg-[#D9777B] hover:text-white"
-                                            }`}
-                                        onClick={() => setViewMode("meditation")}
-                                    >
-                                        <span className="flex items-center gap-1">
-                                            🧘 Session
-                                        </span>
-                                    </button>
-                                </div>
-                            </div>
-
-
                             {/* Enhanced Content Area - Flexible height */}
                             <div className="flex-1 min-h-0 overflow-hidden">
-                                {viewMode === "radar" ? (
-                                    /* Radar View - Compact layout */
-                                    <div className="flex flex-row h-full gap-1 p-1">
-                                        {/* Left Chart */}
-                                        <div className="flex-1 flex flex-col h-full">
-                                            <div className=" rounded-lg p-6 h-full ">
-                                                <div className="h-full">
-                                                    <ResponsiveContainer width="100%" height="100%">
-                                                        <RadarChart
-                                                            data={radarDataCh0Ref.current.length ? radarDataCh0Ref.current : bandData}
-                                                            cx="50%" cy="50%" outerRadius="80%"
-                                                        >
-                                                            <PolarGrid
-                                                                strokeDasharray="2 3"
-                                                                stroke={gridLines}
-                                                                strokeOpacity={0.6}
-                                                            />
-                                                            <PolarAngleAxis
-                                                                dataKey="subject"
-                                                                tick={{ fill: axisColor, fontSize: 10, fontWeight: 500 }}
-                                                            />
-                                                            <PolarRadiusAxis
-                                                                domain={[0, "auto"]}
-                                                                tick={false}
-                                                                axisLine={false}
-                                                                tickLine={false}
-                                                            />
-                                                            <Radar
-                                                                name="Ch0"
-                                                                dataKey="value"
-                                                                stroke={channelColors.ch0}
-                                                                strokeWidth={1.5}
-                                                                fill={channelColors.ch0}
-                                                                fillOpacity={0.3}
-                                                                dot={{ fill: channelColors.ch0, strokeWidth: 1, r: 2 }}
-                                                            />
-                                                        </RadarChart>
-                                                    </ResponsiveContainer>
-                                                </div>
-                                                <div className="text-center mt-1">
-                                                    <div className={`text-xs font-semibold ${primaryAccent}`}>
-                                                        Left Hemisphere
-                                                    </div>
-                                                </div>
-                                            </div>
-                                        </div>
 
-                                        {/* Right Chart */}
-                                        <div className="flex-1 flex flex-col h-full">
-                                            <div className=" rounded-lg p-6 h-full ">
-                                                <div className="h-full">
-                                                    <ResponsiveContainer width="100%" height="100%">
-                                                        <RadarChart
-                                                            data={radarDataCh1Ref.current.length ? radarDataCh1Ref.current : bandData}
-                                                            cx="50%" cy="50%" outerRadius="80%"
-                                                        >
-                                                            <PolarGrid
-                                                                strokeDasharray="2 3"
-                                                                stroke={gridLines}
-                                                                strokeOpacity={0.6}
-                                                            />
-                                                            <PolarAngleAxis
-                                                                dataKey="subject"
-                                                                tick={{ fill: axisColor, fontSize: 10, fontWeight: 500 }}
-                                                            />
-                                                            <PolarRadiusAxis
-                                                                domain={[0, "auto"]}
-                                                                tick={false}
-                                                                axisLine={false}
-                                                                tickLine={false}
-                                                            />
-                                                            <Radar
-                                                                name="Ch1"
-                                                                dataKey="value"
-                                                                stroke={channelColors.ch1}
-                                                                strokeWidth={1.5}
-                                                                fill={channelColors.ch1}
-                                                                fillOpacity={0.3}
-                                                                dot={{ fill: channelColors.ch1, strokeWidth: 1, r: 2 }}
-                                                            />
-                                                        </RadarChart>
-                                                    </ResponsiveContainer>
-                                                </div>
-                                                <div className="text-center mt-1">
-                                                    <div className={`text-xs font-semibold ${primaryAccent}`}>
-                                                        Right Hemisphere
-                                                    </div>
+                                <div className="flex flex-row h-full gap-1 p-1">
+                                    {/* Left Chart */}
+                                    <div className="flex-1 flex flex-col h-full">
+                                        <div className=" rounded-lg p-6 h-full ">
+                                            <div className="h-full">
+                                                <ResponsiveContainer width="100%" height="100%">
+                                                    <RadarChart
+                                                        data={radarDataCh0Ref.current.length ? radarDataCh0Ref.current : bandData}
+                                                        cx="50%" cy="50%" outerRadius="80%"
+                                                    >
+                                                        <PolarGrid
+                                                            strokeDasharray="2 3"
+                                                            stroke={gridLines}
+                                                            strokeOpacity={0.6}
+                                                        />
+                                                        <PolarAngleAxis
+                                                            dataKey="subject"
+                                                            tick={{ fill: axisColor, fontSize: 10, fontWeight: 500 }}
+                                                        />
+                                                        <PolarRadiusAxis
+                                                            domain={[0, "auto"]}
+                                                            tick={false}
+                                                            axisLine={false}
+                                                            tickLine={false}
+                                                        />
+                                                        <Radar
+                                                            name="Ch0"
+                                                            dataKey="value"
+                                                            stroke={channelColors.ch0}
+                                                            strokeWidth={1.5}
+                                                            fill={channelColors.ch0}
+                                                            fillOpacity={0.3}
+                                                            dot={{ fill: channelColors.ch0, strokeWidth: 1, r: 2 }}
+                                                        />
+                                                    </RadarChart>
+                                                </ResponsiveContainer>
+                                            </div>
+                                            <div className="text-center mt-1">
+                                                <div className={`text-xs font-semibold ${primaryAccent}`}>
+                                                    Left Hemisphere
                                                 </div>
                                             </div>
                                         </div>
                                     </div>
-                                ) : (
-                                    /* Meditation View - Compact layout */
-                                    <div className="w-full h-full flex flex-col overflow-hidden ">
-                                        {/* Content */}
-                                        <div className="flex-1 min-h-0 overflow-hidden flex flex-col">
-                                            <MeditationSession
-                                                onStartSession={() => {
-                                                    sessionDataRef.current = [];
-                                                }}
-                                                onEndSession={() => { }}
-                                                sessionData={sessionDataRef.current}
-                                                darkMode={darkMode}
-                                                renderSessionResults={(results) => (
-                                                    <div className="flex flex-col gap-1">
-                                                        {/* Wave Durations - Compact grid */}
-                                                        <div className="grid grid-cols-4 gap-1 w-full">
-                                                            {Object.entries(results.dominantBands).map(([band, ticks]) => (
-                                                                <div
-                                                                    key={band}
-                                                                    className={`relative p-1 rounded-lg border transition-all ${band === results.mostFrequent
-                                                                            ? "border-yellow-400 bg-gradient-to-br from-yellow-50 to-yellow-100 dark:from-yellow-900/30 dark:to-yellow-800/30"
-                                                                            : "border-gray-200 dark:border-zinc-700 bg-white dark:bg-zinc-800/50"
-                                                                        }`}
-                                                                >
-                                                                    {band === results.mostFrequent && (
-                                                                        <div className="absolute -top-1 -right-1 w-3 h-3 bg-yellow-400 rounded-full flex items-center justify-center">
-                                                                            <span className="text-[8px]">👑</span>
-                                                                        </div>
-                                                                    )}
 
-                                                                    <div className="text-center">
-                                                                        <div className={`text-[10px] font-semibold uppercase ${band === "alpha" ? "text-blue-600 dark:text-blue-400" :
-                                                                                band === "beta" ? "text-orange-600 dark:text-orange-400" :
-                                                                                    band === "theta" ? "text-purple-600 dark:text-purple-400" :
-                                                                                        "text-green-600 dark:text-green-400"
-                                                                            }`}>
-                                                                            {band}
-                                                                        </div>
-                                                                        <div className="text-xs font-bold text-gray-800 dark:text-gray-200">
-                                                                            {results.convert(ticks)}
-                                                                        </div>
-                                                                    </div>
-                                                                </div>
-                                                            ))}
-                                                        </div>
-
-                                                        {/* Summary Cards - Compact */}
-                                                        <div className="grid grid-cols-3 gap-1 w-full mt-1">
-                                                            {/* Dominant State */}
-                                                            <div className="p-1 rounded-lg bg-gradient-to-br from-indigo-50 to-purple-50 dark:from-indigo-900/30 dark:to-purple-900/30 border border-indigo-200 dark:border-indigo-800/30">
-                                                                <div className="text-center">
-                                                                    <div className="text-[9px] font-semibold text-indigo-600 dark:text-indigo-400 uppercase">
-                                                                        Dominant
-                                                                    </div>
-                                                                    <div className="text-xs font-bold capitalize text-gray-800 dark:text-gray-200">
-                                                                        {results.mostFrequent}
-                                                                    </div>
-                                                                </div>
-                                                            </div>
-
-                                                            {/* Duration */}
-                                                            <div className="p-1 rounded-lg bg-gradient-to-br from-blue-50 to-cyan-50 dark:from-blue-900/30 dark:to-cyan-900/30 border border-blue-200 dark:border-blue-800/30">
-                                                                <div className="text-center">
-                                                                    <div className="text-[9px] font-semibold text-blue-600 dark:text-blue-400 uppercase">
-                                                                        Duration
-                                                                    </div>
-                                                                    <div className="text-xs font-bold text-gray-800 dark:text-gray-200">
-                                                                        {results.duration}
-                                                                    </div>
-                                                                </div>
-                                                            </div>
-
-                                                            {/* Symmetry */}
-                                                            <div className="p-1 rounded-lg bg-gradient-to-br from-emerald-50 to-teal-50 dark:from-emerald-900/30 dark:to-teal-900/30 border border-emerald-200 dark:border-emerald-800/30">
-                                                                <div className="text-center">
-                                                                    <div className="text-[9px] font-semibold text-emerald-600 dark:text-emerald-400 uppercase">
-                                                                        Symmetry
-                                                                    </div>
-                                                                    <div className="text-xs font-bold text-gray-800 dark:text-gray-200">
-                                                                        {Math.abs(Number(results.avgSymmetry)) < 0.1 ? "Balanced" :
-                                                                            Number(results.avgSymmetry) > 0 ? "Left" : "Right"}
-                                                                    </div>
-                                                                </div>
-                                                            </div>
-                                                        </div>
-
-                                                        {/* Spacer to push content up if there's extra space */}
-                                                        <div className="flex-1"></div>
-                                                    </div>
-                                                )}
-                                                
-                                            />
+                                    {/* Right Chart */}
+                                    <div className="flex-1 flex flex-col h-full">
+                                        <div className=" rounded-lg p-6 h-full ">
+                                            <div className="h-full">
+                                                <ResponsiveContainer width="100%" height="100%">
+                                                    <RadarChart
+                                                        data={radarDataCh1Ref.current.length ? radarDataCh1Ref.current : bandData}
+                                                        cx="50%" cy="50%" outerRadius="80%"
+                                                    >
+                                                        <PolarGrid
+                                                            strokeDasharray="2 3"
+                                                            stroke={gridLines}
+                                                            strokeOpacity={0.6}
+                                                        />
+                                                        <PolarAngleAxis
+                                                            dataKey="subject"
+                                                            tick={{ fill: axisColor, fontSize: 10, fontWeight: 500 }}
+                                                        />
+                                                        <PolarRadiusAxis
+                                                            domain={[0, "auto"]}
+                                                            tick={false}
+                                                            axisLine={false}
+                                                            tickLine={false}
+                                                        />
+                                                        <Radar
+                                                            name="Ch1"
+                                                            dataKey="value"
+                                                            stroke={channelColors.ch1}
+                                                            strokeWidth={1.5}
+                                                            fill={channelColors.ch1}
+                                                            fillOpacity={0.3}
+                                                            dot={{ fill: channelColors.ch1, strokeWidth: 1, r: 2 }}
+                                                        />
+                                                    </RadarChart>
+                                                </ResponsiveContainer>
+                                            </div>
+                                            <div className="text-center mt-1">
+                                                <div className={`text-xs font-semibold ${primaryAccent}`}>
+                                                    Right Hemisphere
+                                                </div>
+                                            </div>
                                         </div>
                                     </div>
-                                )}
+                                </div>
+
                             </div>
                         </div>
 

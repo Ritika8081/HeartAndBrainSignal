@@ -190,36 +190,34 @@ export const MeditationSession = ({
                             </div>
 
                             <div className="flex-1 flex flex-col justify-center space-y-1">
-                                <label className={`text-xs font-medium ${textSecondary}`}>Duration (minutes)</label>
+                                <label className={`text-xs font-medium ${textSecondary}`}>Duration</label>
 
-                                <div className="flex flex-row items-center space-x-2">
-                                    <input
-                                        type="number"
-                                        min="1"
-                                        max="60"
-                                        value={duration}
-                                        onChange={(e) =>
-                                            setDuration(Math.min(60, Math.max(1, parseInt(e.target.value) || 5)))
-                                        }
-                                        className={`flex-grow px-3 py-2 rounded-lg border text-center font-medium ${inputBg} transition-all duration-200 outline-none text-sm`}
-                                    />
-
-                                    <button
-                                        onClick={startMeditation}
-                                        className={`bg-[#D9777B] px-4 py-2 text-white font-medium rounded-lg transition-all duration-300 transform hover:scale-[1.02] active:scale-[0.98] flex items-center justify-center gap-2 text-sm whitespace-nowrap`}
-                                    >
-                                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                            <path
-                                                strokeLinecap="round"
-                                                strokeLinejoin="round"
-                                                strokeWidth={2}
-                                                d="M14.828 14.828a4 4 0 01-5.656 0M9 10h1.5a2.5 2.5 0 110 5H9m0 0V6.5a2.5 2.5 0 011.5-2.5H12"
-                                            />
-                                        </svg>
-                                        Begin
-                                    </button>
+                                {/* Preset Buttons */}
+                                <div className="flex flex-row flex-wrap gap-2">
+                                    {[1, 5, 10].map((val) => (
+                                        <button
+                                            key={val}
+                                            onClick={() => setDuration(val)}
+                                            className={`px-3 py-2 rounded-lg border font-medium text-sm transition-all duration-200 
+                    ${duration === val
+                                                    ? "bg-[#D9777B] text-white border-transparent"
+                                                    : `bg-white dark:bg-zinc-800 text-gray-700 dark:text-gray-200 border-gray-300 dark:border-zinc-600`
+                                                }`}
+                                        >
+                                            {val} min
+                                        </button>
+                                    ))}
                                 </div>
+
+                                {/* Begin Button */}
+                                <button
+                                    onClick={startMeditation}
+                                    className={`mt-2 bg-[#D9777B] px-4 py-2 text-white font-medium rounded-lg transition-all duration-300 transform hover:scale-[1.02] active:scale-[0.98] flex items-center justify-center gap-2 text-sm whitespace-nowrap`}
+                                >
+                                    Begin
+                                </button>
                             </div>
+
                         </div>
                     ) : (
                         // Session Results UI
@@ -258,7 +256,7 @@ export const MeditationSession = ({
                             </div>
 
                             <div className="flex-1 min-h-0 overflow-y-auto ">
-                                {renderSessionResults?.({
+                                {renderSessionResults && renderSessionResults({
                                     dominantBands: sessionResults.dominantBands,
                                     mostFrequent: sessionResults.mostFrequent,
                                     convert: sessionResults.convert,
@@ -266,39 +264,6 @@ export const MeditationSession = ({
                                     duration: sessionResults.formattedDuration
                                 })}
 
-                                <div className=" rounded-lg border border-yellow-300 bg-yellow-50 dark:bg-yellow-900/20 dark:border-yellow-700 text-xs font-medium text-yellow-800 dark:text-yellow-100">
-                                    {(() => {
-                                        const alphaTicks = sessionResults.dominantBands.alpha ?? 0;
-                                        const thetaTicks = sessionResults.dominantBands.theta ?? 0;
-                                        const betaTicks = sessionResults.dominantBands.beta ?? 0;
-                                        const deltaTicks = sessionResults.dominantBands.delta ?? 0;
-                                        const totalTicks = alphaTicks + thetaTicks + betaTicks + deltaTicks;
-
-                                        const alphaPct = ((alphaTicks / totalTicks) * 100).toFixed(1);
-                                        const thetaPct = ((thetaTicks / totalTicks) * 100).toFixed(1);
-                                        const betaPct = ((betaTicks / totalTicks) * 100).toFixed(1);
-
-                                        const dominantText = sessionResults.mostFrequent === "alpha"
-                                            ? "a calm, relaxed state"
-                                            : sessionResults.mostFrequent === "theta"
-                                                ? "a deeply meditative state"
-                                                : sessionResults.mostFrequent === "beta"
-                                                    ? "an alert or slightly stressed state"
-                                                    : "a sleepy, resting state";
-
-                                        const symmetry = Math.abs(Number(sessionResults.avgSymmetry)) < 0.05
-                                            ? "balanced"
-                                            : Number(sessionResults.avgSymmetry) > 0
-                                                ? `left hemisphere was slightly dominant (α=${alphaPct}%)`
-                                                : `right hemisphere was slightly dominant (β=${betaPct}%)`;
-
-                                        const feedback = Number(betaPct) > 25
-                                            ? "Try reducing beta activity next time for deeper calm."
-                                            : "You're doing great—keep practicing regularly!";
-
-                                        return `You stayed in ${dominantText} for ${sessionResults.formattedDuration}, with strong alpha-theta presence (α=${alphaPct}%, θ=${thetaPct}%). Your ${symmetry}. ${feedback}`;
-                                    })()}
-                                </div>
                             </div>
 
                             <button
