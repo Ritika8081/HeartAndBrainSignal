@@ -19,12 +19,23 @@ export const MeditationSession = ({
         convert: (ticks: number) => string;
         avgSymmetry: string;
         duration: string;
+        averages: {
+            alpha: number;
+            beta: number;
+            theta: number;
+            delta: number;
+            symmetry: number;
+        };
+        focusScore: string;
+        statePercentages: Record<string, string>;  // ✅ required
+        goodMeditationPct: string;                 // ✅ required
     }) => React.ReactNode;
+
 }) => {
 
     const [isMeditating, setIsMeditating] = useState(false);
-    const [duration, setDuration] = useState(5); // minutes
-    const [timeLeft, setTimeLeft] = useState(0); // seconds
+    const [duration, setDuration] = useState(5);
+    const [timeLeft, setTimeLeft] = useState(0);
     const [sessionResults, setSessionResults] = useState<{
         duration: number;
         averages: {
@@ -44,10 +55,13 @@ export const MeditationSession = ({
         convert: (ticks: number) => string;
         avgSymmetry: string;
         formattedDuration: string;
+        statePercentages: Record<string, string>; // ✅ Added
+        goodMeditationPct: string;               // ✅ Added
+        weightedEEGScore: number;                // ✅ Added
     } | null>(null);
     const sessionStartTime = useRef<number | null>(null);
+    const selectedGoalRef = useRef<string>('meditation'); // Default goal set to 'meditation'
 
-    // Start meditation session
     const startMeditation = () => {
         setIsMeditating(true);
         setTimeLeft(duration * 60);
@@ -55,19 +69,14 @@ export const MeditationSession = ({
         onStartSession();
     };
 
-    // Stop meditation session
     const stopMeditation = () => {
         setIsMeditating(false);
-        analyzeSession();
+        const frozenData = sessionData.filter(d => sessionStartTime.current && d.timestamp >= sessionStartTime.current);
+        analyzeSession(frozenData);
         onEndSession();
     };
 
-    // Analyze collected data
-    const analyzeSession = () => {
-        const data = sessionData.filter(d =>
-            sessionStartTime.current && d.timestamp >= sessionStartTime.current
-        );
-
+    const analyzeSession = (data: typeof sessionData) => {
         if (!data.length) return;
 
         const sessionDurationMs = data[data.length - 1].timestamp - data[0].timestamp;
@@ -75,27 +84,12 @@ export const MeditationSession = ({
             ? `${Math.round(sessionDurationMs / 60000)} min`
             : `${Math.round(sessionDurationMs / 1000)} sec`;
 
-        const dominantBands: Record<string, number> = {
-            alpha: 0,
-            beta: 0,
-            theta: 0,
-            delta: 0,
-        };
+        const convert = (ticks: number) => ((ticks * 0.5) / 60).toFixed(2);
 
-        for (const d of data) {
-            const maxBand = Object.entries(d).filter(([key]) => key !== "timestamp" && key !== "symmetry")
-                .reduce((a, b) => (a[1] > b[1] ? a : b))[0];
-            dominantBands[maxBand]++;
-        }
-
-        const convert = (ticks: number) => ((ticks * 0.5) / 60).toFixed(2); // assuming FFT every 500ms
         const avgSymmetry = (
             data.reduce((sum, d) => sum + (d.symmetry ?? 0), 0) / data.length
         ).toFixed(3);
 
-        const mostFrequent = Object.entries(dominantBands).sort((a, b) => b[1] - a[1])[0][0];
-
-        // Calculate averages
         const averages = {
             alpha: data.reduce((sum, d) => sum + d.alpha, 0) / data.length,
             beta: data.reduce((sum, d) => sum + d.beta, 0) / data.length,
@@ -104,29 +98,55 @@ export const MeditationSession = ({
             symmetry: data.reduce((sum, d) => sum + d.symmetry, 0) / data.length,
         };
 
-        // Determine mental state
-        const maxBand = Object.entries(averages)
-            .filter(([key]) => key !== 'symmetry')
-            .reduce((a, b) => a[1] > b[1] ? a : b)[0];
+        const totalPower = averages.alpha + averages.beta + averages.theta + averages.delta;
+
+        const statePercentages = {
+            Relaxed: ((averages.alpha / totalPower) * 100).toFixed(1),
+            Focused: ((averages.beta / totalPower) * 100).toFixed(1),
+            "Deep Meditation": ((averages.theta / totalPower) * 100).toFixed(1),
+            Drowsy: ((averages.delta / totalPower) * 100).toFixed(1),
+        };
+
+        const goodMeditationPct = (
+            ((averages.alpha + averages.theta) / totalPower) * 100
+        ).toFixed(1);
+
+        const mostFrequent = Object.entries(averages)
+            .filter(([key]) => key !== "symmetry")
+            .sort((a, b) => b[1] - a[1])[0][0];
 
         let mentalState = '';
         let stateDescription = '';
 
-        if (maxBand === 'alpha') {
+        if (mostFrequent === 'alpha') {
             mentalState = 'Relaxed';
             stateDescription = 'Your mind was in a calm and relaxed state, ideal for meditation.';
-        } else if (maxBand === 'beta') {
-            mentalState = 'Active';
-            stateDescription = 'Your mind was quite active. Try focusing more on your breath next time.';
-        } else if (maxBand === 'theta') {
+        } else if (mostFrequent === 'beta') {
+            mentalState = 'Focused';
+            stateDescription = 'Your mind was highly alert or active. Try to slow down your breath to enter a calmer state.';
+        } else if (mostFrequent === 'theta') {
             mentalState = 'Deep Meditation';
-            stateDescription = 'You reached a deep meditative state, great job!';
-        } else if (maxBand === 'delta') {
-            mentalState = 'Drowsy/Sleepy';
-            stateDescription = 'You were very relaxed, almost sleepy. Perfect for bedtime meditation.';
+            stateDescription = 'You entered a deeply meditative state—excellent work.';
+        } else if (mostFrequent === 'delta') {
+            mentalState = 'Drowsy';
+            stateDescription = 'Your brain was in a very slow-wave state, indicating deep rest or sleepiness.';
         }
 
-        // Calculate focus score (alpha/theta to beta ratio)
+        // 🧠 Goal-specific scoring
+        const EEG_WEIGHTS: Record<string, Partial<Record<'alpha' | 'theta' | 'beta' | 'delta', number>>> = {
+            meditation: { alpha: 0.4, theta: 0.6 },
+            relaxation: { alpha: 0.7, theta: 0.3 },
+            focus: { beta: 0.8, alpha: 0.2 },
+            sleep: { delta: 1.0 },
+        };
+
+        const goal = selectedGoalRef.current;
+        const goalWeights = EEG_WEIGHTS[goal] || {};
+        const weightedEEGScore = Object.entries(goalWeights).reduce(
+            (sum, [band, weight]) => sum + (weight ?? 0) * (averages[band as keyof typeof averages] || 0),
+            0
+        );
+
         const focusScore = ((averages.alpha + averages.theta) / (averages.beta + 0.001)).toFixed(2);
 
         setSessionResults({
@@ -138,15 +158,23 @@ export const MeditationSession = ({
             symmetry: averages.symmetry > 0 ? 'Left hemisphere dominant' :
                 averages.symmetry < 0 ? 'Right hemisphere dominant' : 'Balanced',
             data,
-            dominantBands,
+            dominantBands: {
+                alpha: Math.round(averages.alpha * 1000),
+                beta: Math.round(averages.beta * 1000),
+                theta: Math.round(averages.theta * 1000),
+                delta: Math.round(averages.delta * 1000),
+            },
             mostFrequent,
             convert,
             avgSymmetry,
-            formattedDuration: sessionDuration
+            formattedDuration: sessionDuration,
+            statePercentages,
+            goodMeditationPct,
+            weightedEEGScore, // ✅ optional: you can show this in UI
         });
     };
 
-    // Countdown timer effect
+
     useEffect(() => {
         if (!isMeditating || timeLeft <= 0) return;
 
@@ -164,7 +192,6 @@ export const MeditationSession = ({
         return () => clearInterval(timer);
     }, [isMeditating, timeLeft]);
 
-    // Calculate progress percentage for visual feedback
     const progressPercentage = isMeditating ? ((duration * 60 - timeLeft) / (duration * 60)) * 100 : 0;
 
     const cardBg = darkMode
@@ -224,51 +251,27 @@ export const MeditationSession = ({
                         <div className="h-full flex flex-col animate-in fade-in duration-500 overflow-hidden">
                             <div className="text-center flex flex-row">
                                 <h4 className={`text-sm font-semibold ${textPrimary}`}>Session Complete : meditation insights</h4>
-                                <div className="flex justify-center mx-5 pb-2">
-                                    {(() => {
-                                        const stateLabel = sessionResults.mostFrequent === "alpha"
-                                            ? "🧘 Relaxation"
-                                            : sessionResults.mostFrequent === "theta"
-                                                ? "🛌 Deep Meditation"
-                                                : sessionResults.mostFrequent === "beta"
-                                                    ? "🎯 Focus"
-                                                    : sessionResults.mostFrequent === "delta"
-                                                        ? "💤 Sleep"
-                                                        : "⚪ Neutral";
-
-                                        const colorMap: Record<string, string> = {
-                                            alpha: "bg-blue-100 text-blue-700 dark:bg-blue-900/20 dark:text-blue-200",
-                                            theta: "bg-purple-100 text-purple-700 dark:bg-purple-900/20 dark:text-purple-200",
-                                            beta: "bg-orange-100 text-orange-700 dark:bg-orange-900/20 dark:text-orange-200",
-                                            delta: "bg-gray-100 text-gray-700 dark:bg-gray-800/20 dark:text-gray-300",
-                                        };
-
-                                        const bandColor = colorMap[sessionResults.mostFrequent] || "bg-zinc-200 text-zinc-700 dark:bg-zinc-800 dark:text-zinc-300";
-
-                                        return (
-                                            <div className={`text-xs font-semibold px-3 py-1 rounded-full ${bandColor}`}>
-                                                {stateLabel}
-                                            </div>
-                                        );
-                                    })()}
-                                </div>
 
                             </div>
 
-                            <div className="flex-1 min-h-0 overflow-y-auto ">
+                            <div className="flex-1 min-h-0 overflow-y-auto">
                                 {renderSessionResults && renderSessionResults({
                                     dominantBands: sessionResults.dominantBands,
                                     mostFrequent: sessionResults.mostFrequent,
                                     convert: sessionResults.convert,
                                     avgSymmetry: sessionResults.avgSymmetry,
-                                    duration: sessionResults.formattedDuration
+                                    duration: sessionResults.formattedDuration,
+                                    averages: sessionResults.averages,
+                                    focusScore: sessionResults.focusScore,
+                                    statePercentages: sessionResults.statePercentages,      // ✅ new
+                                    goodMeditationPct: sessionResults.goodMeditationPct     // ✅ new
                                 })}
-
                             </div>
+
 
                             <button
                                 onClick={() => setSessionResults(null)}
-                                className={`w-full  px-4 bg-[#548687] text-white font-medium rounded-lg transition-all duration-300 transform hover:scale-[1.02] active:scale-[0.98] flex items-center justify-center gap-2 text-sm flex-shrink-0`}
+                                className={`w-full px-4 bg-[#548687] text-white font-medium rounded-lg transition-all duration-300 transform hover:scale-[1.02] active:scale-[0.98] flex items-center justify-center gap-2 text-sm flex-shrink-0`}
                             >
                                 <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
@@ -278,42 +281,44 @@ export const MeditationSession = ({
                         </div>
                     )
                 ) : (
-                    // Active Meditation UI
                     <div className="h-full flex flex-col justify-center items-center text-center animate-in fade-in duration-300">
-                        <div className="relative w-20 h-20 mb-2">
-                            <div className={`w-full h-full rounded-full border-2 ${darkMode ? 'border-blue-400/30' : 'border-blue-500/30'} relative overflow-hidden`}>
+                        <div className="relative  max-w-[120px] aspect-square mb-2">
+                            <div
+                                className={`w-16 h-16 rounded-full border-2 ${darkMode ? 'border-blue-400/30' : 'border-blue-500/30'} relative overflow-hidden`}
+                            >
                                 <div
-                                    className={`absolute inset-1 rounded-full ${darkMode ? 'bg-blue-400/20' : 'bg-blue-500/20'} animate-pulse`}
+                                    className={`absolute inset-0 rounded-full ${darkMode ? 'bg-blue-400/20' : 'bg-blue-500/20'} animate-pulse`}
                                     style={{ animation: 'breathe 4s ease-in-out infinite' }}
                                 />
                                 <div className="absolute inset-0 flex items-center justify-center">
-                                    <div className={`text-xs font-light ${accent}`}>
+                                    <div className={`text-[10px] font-light ${accent}`}>
                                         {Math.floor(timeLeft / 60)}:{(timeLeft % 60).toString().padStart(2, '0')}
                                     </div>
                                 </div>
                             </div>
 
-                            <svg className="absolute inset-0 w-full h-full transform -rotate-90">
+                            <svg className="absolute inset-0 w-16 h-16 transform -rotate-90" viewBox="0 0 100 100">
                                 <circle
-                                    cx="40"
-                                    cy="40"
-                                    r="38"
+                                    cx="50"
+                                    cy="50"
+                                    r="48"
                                     stroke={darkMode ? "#374151" : "#e5e7eb"}
                                     strokeWidth="1"
                                     fill="none"
                                 />
                                 <circle
-                                    cx="40"
-                                    cy="40"
-                                    r="38"
+                                    cx="50"
+                                    cy="50"
+                                    r="48"
                                     stroke={darkMode ? "#60a5fa" : "#3b82f6"}
                                     strokeWidth="1"
                                     fill="none"
-                                    strokeDasharray={`${2 * Math.PI * 38}`}
-                                    strokeDashoffset={`${2 * Math.PI * 38 * (1 - progressPercentage / 100)}`}
+                                    strokeDasharray={Math.PI * 2 * 48}
+                                    strokeDashoffset={(Math.PI * 2 * 48 * (1 - progressPercentage / 100))}
                                     className="transition-all duration-1000 ease-linear"
                                 />
                             </svg>
+
                         </div>
 
                         <div className="space-y-1 mb-2">
@@ -332,6 +337,7 @@ export const MeditationSession = ({
                             End
                         </button>
                     </div>
+
                 )}
             </div>
 

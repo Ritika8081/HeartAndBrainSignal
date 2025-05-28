@@ -74,6 +74,7 @@ export default function SignalVisualizer() {
 
     const [calmScore, setCalmScore] = useState<number | null>(null);
     const sessionDataRef = useRef<{ timestamp: number; alpha: number; beta: number; theta: number; delta: number, symmetry: number }[]>([]);
+    const isMeditatingRef = useRef(false); // Add this line to define isMeditatingRef
     const SAMPLE_RATE = 500;
     const FFT_SIZE = 256;
 
@@ -174,7 +175,7 @@ export default function SignalVisualizer() {
             const goal = selectedGoalRef.current;
 
             if (goal === "anxiety") {
-                score = (smooth0.alpha + smooth1.alpha) / (smooth0.beta + smooth1.beta + 0.001);
+                score = (Number(smooth0.alpha) + Number(smooth1.alpha)) / (Number(smooth0.beta) + Number(smooth1.beta) + 0.001);
             } else if (goal === "meditation") {
                 score = (smooth0.theta + smooth1.theta) / 2;
             } else if (goal === "sleep") {
@@ -182,7 +183,6 @@ export default function SignalVisualizer() {
             }
             const alphaDiff = smooth0.alpha - smooth1.alpha;
             const betaDiff = smooth0.beta - smooth1.beta;
-            console.log("Alpha symmetry (L-R):", alphaDiff.toFixed(3), "Beta diff:", betaDiff.toFixed(3));
 
             const currentData = {
                 timestamp: Date.now(),
@@ -193,19 +193,12 @@ export default function SignalVisualizer() {
                 symmetry: smooth0.alpha - smooth1.alpha,
             };
 
-            sessionDataRef.current.push(currentData);
+            // ✅ Only record data if meditating
+            if (isMeditatingRef.current) {
+                sessionDataRef.current.push(currentData);
+            }
 
             setCalmScore(score);
-
-            sessionDataRef.current.push({
-                timestamp: Date.now(),
-                alpha: (smooth0.alpha + smooth1.alpha) / 2,
-                beta: (smooth0.beta + smooth1.beta) / 2,
-                theta: (smooth0.theta + smooth1.theta) / 2,
-                delta: (smooth0.delta + smooth1.delta) / 2,
-                symmetry: smooth0.alpha - smooth1.alpha, // new
-            });
-
         };
 
         workerRef.current = w;
@@ -284,10 +277,6 @@ export default function SignalVisualizer() {
         ) => {
             const { bpm, high, low, avg, hrv, hrvHigh, hrvLow, hrvAvg, sdnn, rmssd, pnn50 } = e.data;
 
-            console.log(
-                `BPM: current=${bpm}, low=${low}, high=${high}, avg=${avg}; ` +
-                `HRV (ms): latest=${hrv}, low=${hrvLow}, high=${hrvHigh}, avg=${hrvAvg}`
-            );
 
             if (hrv !== null && !isNaN(hrv)) {
                 hrvplotRef.current?.updateHRV(hrv);
@@ -333,6 +322,9 @@ export default function SignalVisualizer() {
         };
     }, []);
 
+    useEffect(() => {
+        isMeditatingRef.current = viewMode === "meditation";
+    }, [viewMode]);
 
     // 5) Hook into your existing dataProcessor worker
     useEffect(() => {
@@ -446,8 +438,8 @@ export default function SignalVisualizer() {
                             <h3 className="text-base font-semibold mb-2 text-[#C29963]">Meditation</h3>
                             <div className="flex-1 min-h-0 overflow-hidden flex flex-col">
                                 <MeditationSession
-                                    onStartSession={() => { sessionDataRef.current = []; }}
-                                    onEndSession={() => { }}
+                                    onStartSession={() => { sessionDataRef.current = [], isMeditatingRef.current = true; }}
+                                    onEndSession={() => { isMeditatingRef.current = false; }}
                                     sessionData={sessionDataRef.current}
                                     darkMode={darkMode}
                                     renderSessionResults={(results) => (
@@ -481,36 +473,6 @@ export default function SignalVisualizer() {
                                                                             results.mostFrequent === 'delta' ? '💤 Sleep' : '⚪ Neutral'}
                                                             </div>
 
-                                                            {/* Brainwave Durations */}
-                                                            <div className="grid grid-cols-4 gap-1">
-                                                                {Object.entries(results.dominantBands).map(([band, ticks]) => (
-                                                                    <div
-                                                                        key={band}
-                                                                        className={`relative p-1 rounded-lg border transition-all ${band === results.mostFrequent
-                                                                            ? "border-yellow-400 bg-gradient-to-br from-yellow-50 to-yellow-100 dark:from-yellow-900/30 dark:to-yellow-800/30"
-                                                                            : "border-gray-200 dark:border-zinc-700 bg-white dark:bg-zinc-800/50"
-                                                                            }`}
-                                                                    >
-                                                                        {band === results.mostFrequent && (
-                                                                            <div className="absolute -top-1 -right-1 w-3 h-3 bg-yellow-400 rounded-full flex items-center justify-center">
-                                                                                <span className="text-[8px]">👑</span>
-                                                                            </div>
-                                                                        )}
-
-                                                                        <div className="text-center">
-                                                                            <div className={`text-[10px] font-semibold uppercase ${band === "alpha" ? "text-blue-600 dark:text-blue-400" :
-                                                                                band === "beta" ? "text-orange-600 dark:text-orange-400" :
-                                                                                    band === "theta" ? "text-purple-600 dark:text-purple-400" :
-                                                                                        band === "delta" ? "text-green-600 dark:text-green-400" : "text-gray-600 dark:text-gray-300"}`}>
-                                                                                {band}
-                                                                            </div>
-                                                                            <div className="text-xs font-bold text-gray-800 dark:text-gray-200">
-                                                                                {results.convert(ticks)}
-                                                                            </div>
-                                                                        </div>
-                                                                    </div>
-                                                                ))}
-                                                            </div>
 
                                                             {/* Summary Grid */}
                                                             <div className="grid grid-cols-3 gap-1 w-full mt-1">
@@ -531,19 +493,47 @@ export default function SignalVisualizer() {
                                                                 </div>
                                                             </div>
 
-                                                            {/* Summary Message */}
+                                                            <div className="mt-2 text-xs font-medium">
+                                                                <h4 className="text-sm font-semibold mb-1 text-[#548687]">🧘 Meditation Breakdown</h4>
+                                                                <div className="grid grid-cols-2 gap-1">
+                                                                    {Object.entries(results.statePercentages).map(([state, pct]) => (
+                                                                        <div
+                                                                            key={state}
+                                                                            className="flex justify-between px-2 py-1 rounded-md bg-gray-100 dark:bg-zinc-800"
+                                                                        >
+                                                                            <span>{state}</span>
+                                                                            <span>{pct}%</span>
+                                                                        </div>
+                                                                    ))}
+                                                                </div>
+                                                                <div className="mt-2 p-2 text-center rounded-md bg-emerald-100 dark:bg-emerald-900/20 text-emerald-800 dark:text-emerald-100 font-semibold text-xs">
+                                                                    <div>
+                                                                        {Number(results.goodMeditationPct) >= 75
+                                                                            ? `🌟 Excellent! You spent ${Math.round(Number(results.goodMeditationPct))}% in a strong meditative state.`
+                                                                            : Number(results.goodMeditationPct) >= 50
+                                                                                ? `🌿 Great job! You spent ${Math.round(Number(results.goodMeditationPct))}% in a good meditation state.`
+                                                                                : `⚠️ Keep practicing! You're on your way.`}
+                                                                    </div>
+                                                                </div>
+                                                            </div>
 
+
+                                                            {/* Summary Message */}
                                                             <div className="mt-2 rounded-lg border border-yellow-300 bg-yellow-50 dark:bg-yellow-900/20 dark:border-yellow-700 text-xs font-medium text-yellow-800 dark:text-yellow-100 p-2">
                                                                 {(() => {
-                                                                    const alphaTicks = results.dominantBands.alpha ?? 0;
-                                                                    const thetaTicks = results.dominantBands.theta ?? 0;
-                                                                    const betaTicks = results.dominantBands.beta ?? 0;
-                                                                    const deltaTicks = results.dominantBands.delta ?? 0;
-                                                                    const totalTicks = alphaTicks + thetaTicks + betaTicks + deltaTicks;
+                                                                    const alpha = results.averages.alpha ?? 0;
+                                                                    const theta = results.averages.theta ?? 0;
+                                                                    const beta = results.averages.beta ?? 0;
+                                                                    const delta = results.averages.delta ?? 0;
+                                                                    const total = alpha + theta + beta + delta;
 
-                                                                    const alphaPct = ((alphaTicks / totalTicks) * 100).toFixed(1);
-                                                                    const thetaPct = ((thetaTicks / totalTicks) * 100).toFixed(1);
-                                                                    const betaPct = ((betaTicks / totalTicks) * 100).toFixed(1);
+                                                                    const alphaPct = results.statePercentages.Relaxed;
+                                                                    const thetaPct = results.statePercentages["Deep Meditation"];
+                                                                    const betaPct = results.statePercentages.Focused;
+
+
+                                                                    console.log("alphaPct:", alphaPct, "thetaPct:", thetaPct, "betaPct:", betaPct);
+                                                                    console.log("alpha:", alpha, "theta:", theta, "beta:", beta, "delta:", delta, "total:", total);
 
                                                                     const dominantText = results.mostFrequent === "alpha"
                                                                         ? "a calm, relaxed state"
