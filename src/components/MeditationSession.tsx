@@ -213,7 +213,7 @@ export const MeditationSession = ({
                         <div className="space-y-2 animate-in fade-in duration-300 h-full flex flex-col">
                             <div className="text-center">
                                 <h3 className={`text-sm font-semibold ${textPrimary} mb-1`}>Begin Session</h3>
-                                <p className={`text-xs ${textSecondary}`}>Start your meditation journey</p>
+                               
                             </div>
 
                             <div className="flex-1 flex flex-col justify-center space-y-1">

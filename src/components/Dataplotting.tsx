@@ -22,6 +22,7 @@ import MeditationWaveform from "../components/MeditationWaveform"; // Add this i
 import { predictState } from "@/lib/stateClassifier";
 import { useRouter } from 'next/navigation';
 import { MeditationSession } from '../components/MeditationSession';
+import QuoteCard from './QuoteCard';
 
 const CHANNEL_COLORS: Record<string, string> = {
     ch0: "#C29963", // EEG channel 0
@@ -412,28 +413,35 @@ export default function SignalVisualizer() {
                             </div>
                         </div>
 
-                         {/* second card - Meditation View (Last Session Preview with Modal) */}
-                        <div className={`rounded-xl shadow-md p-3 border ${cardBg} flex flex-col transition-colors duration-300 h-1/3 min-h-0 overflow-hidden`}>
-                            <h3 className="text-base font-semibold mb-2 text-[#C29963]">Meditation</h3>
+                        {/* second card - Meditation View (Last Session Preview with Modal) */}
+                        <div
+                            className={`rounded-xl shadow-md p-1 sm:p-2 md:p-3 border ${cardBg} flex flex-col transition-colors duration-300 min-h-0 h-auto overflow-hidden w-full`}
+                        >
+                            <h3 className="text-base md:text-lg font-semibold mb-2 text-[#C29963]">Meditation</h3>
                             <div className="flex-1 min-h-0 overflow-hidden flex flex-col">
                                 <MeditationSession
-                                    onStartSession={() => { sessionDataRef.current = [], isMeditatingRef.current = true; }}
-                                    onEndSession={() => { isMeditatingRef.current = false; }}
+                                    onStartSession={() => {
+                                        sessionDataRef.current = [];
+                                        isMeditatingRef.current = true;
+                                    }}
+                                    onEndSession={() => {
+                                        isMeditatingRef.current = false;
+                                    }}
                                     sessionData={sessionDataRef.current}
                                     darkMode={darkMode}
                                     renderSessionResults={(results) => (
                                         <>
                                             <button
                                                 onClick={() => setShowResults(true)}
-                                                className="mt-auto py-1 text-xs font-medium rounded bg-[#9A7197] text-white hover:bg-[#875981] transition-all"
+                                                className="mt-auto py-1 px-3 text-xs font-medium rounded bg-[#9A7197] text-white hover:bg-[#875981] transition-all w-fit self-end"
                                             >
                                                 View Last Results
                                             </button>
 
                                             {showResults && (
-                                                <div className="fixed inset-0 bg-black/40 backdrop-blur-sm flex items-center justify-center z-50">
-                                                    <div className="bg-white dark:bg-zinc-900 rounded-lg shadow-xl p-4 w-[100%]  max-w-5xl overflow-y-auto max-h-[90vh] flex flex-row justify-center">
-                                                        <div>
+                                                <div className="fixed inset-0 bg-black/40 backdrop-blur-sm flex items-center justify-center z-50 px-2 sm:px-6">
+                                                    <div className="bg-white dark:bg-zinc-900 rounded-lg shadow-xl p-4 w-full max-w-screen-md max-h-[90vh] overflow-y-auto flex flex-col md:flex-row justify-center">
+                                                        <div className="flex-1">
                                                             <MeditationWaveform
                                                                 data={sessionDataRef.current}
                                                                 sessionDuration={
@@ -448,9 +456,12 @@ export default function SignalVisualizer() {
                                                                 darkMode={darkMode}
                                                             />
                                                         </div>
-                                                        <div className="mx-8 ">
+
+                                                        <div className="md:ml-8 mt-4 md:mt-0 flex-1">
                                                             <div className="flex justify-between items-center mb-2">
-                                                                <h4 className="text-sm font-semibold text-[#548687]">Session Complete: Meditation Insights</h4>
+                                                                <h4 className="text-sm font-semibold text-[#548687]">
+                                                                    Session Complete: Meditation Insights
+                                                                </h4>
                                                                 <button
                                                                     onClick={() => setShowResults(false)}
                                                                     className="text-xs text-gray-600 dark:text-gray-300 hover:text-red-600"
@@ -462,36 +473,55 @@ export default function SignalVisualizer() {
                                                             <div className="flex flex-col gap-1">
                                                                 {/* Mental State */}
                                                                 <div className="text-xs font-semibold text-center text-[#548687]">
-                                                                    {results.mostFrequent === 'alpha' ? '🧘 Relaxation' :
-                                                                        results.mostFrequent === 'theta' ? '🛌 Deep Meditation' :
-                                                                            results.mostFrequent === 'beta' ? '🎯 Focus' :
-                                                                                results.mostFrequent === 'delta' ? '💤 Sleep' : '⚪ Neutral'}
+                                                                    {results.mostFrequent === 'alpha'
+                                                                        ? '🧘 Relaxation'
+                                                                        : results.mostFrequent === 'theta'
+                                                                            ? '🛌 Deep Meditation'
+                                                                            : results.mostFrequent === 'beta'
+                                                                                ? '🎯 Focus'
+                                                                                : results.mostFrequent === 'delta'
+                                                                                    ? '💤 Sleep'
+                                                                                    : '⚪ Neutral'}
                                                                 </div>
 
                                                                 {/* Summary Grid */}
                                                                 <div className="grid grid-cols-3 gap-1 w-full mt-1">
                                                                     <div className="p-1 rounded-lg bg-indigo-100 dark:bg-indigo-900/20 border border-indigo-300 dark:border-indigo-800 text-center">
-                                                                        <div className="text-[9px] font-semibold text-indigo-600 dark:text-indigo-400 uppercase">Dominant</div>
-                                                                        <div className="text-xs font-bold capitalize text-gray-800 dark:text-gray-200">{results.mostFrequent}</div>
+                                                                        <div className="text-[9px] font-semibold text-indigo-600 dark:text-indigo-400 uppercase">
+                                                                            Dominant
+                                                                        </div>
+                                                                        <div className="text-xs font-bold capitalize text-gray-800 dark:text-gray-200">
+                                                                            {results.mostFrequent}
+                                                                        </div>
                                                                     </div>
                                                                     <div className="p-1 rounded-lg bg-cyan-100 dark:bg-cyan-900/20 border border-blue-300 dark:border-blue-800 text-center">
-                                                                        <div className="text-[9px] font-semibold text-blue-600 dark:text-blue-400 uppercase">Duration</div>
-                                                                        <div className="text-xs font-bold text-gray-800 dark:text-gray-200">{results.duration}</div>
+                                                                        <div className="text-[9px] font-semibold text-blue-600 dark:text-blue-400 uppercase">
+                                                                            Duration
+                                                                        </div>
+                                                                        <div className="text-xs font-bold text-gray-800 dark:text-gray-200">
+                                                                            {results.duration}
+                                                                        </div>
                                                                     </div>
                                                                     <div className="p-1 rounded-lg bg-emerald-100 dark:bg-emerald-900/20 border border-emerald-300 dark:border-emerald-800 text-center">
-                                                                        <div className="text-[9px] font-semibold text-emerald-600 dark:text-emerald-400 uppercase">Symmetry</div>
+                                                                        <div className="text-[9px] font-semibold text-emerald-600 dark:text-emerald-400 uppercase">
+                                                                            Symmetry
+                                                                        </div>
                                                                         <div className="text-xs font-bold text-gray-800 dark:text-gray-200">
-                                                                            {Math.abs(Number(results.avgSymmetry)) < 0.1 ? "Balanced" :
-                                                                                Number(results.avgSymmetry) > 0 ? "Left" : "Right"}
+                                                                            {Math.abs(Number(results.avgSymmetry)) < 0.1
+                                                                                ? 'Balanced'
+                                                                                : Number(results.avgSymmetry) > 0
+                                                                                    ? 'Left'
+                                                                                    : 'Right'}
                                                                         </div>
                                                                     </div>
                                                                 </div>
-
                                                             </div>
 
                                                             {/* Meditation Breakdown + Feedback */}
-                                                            <div className="mt-8 text-xs font-medium mb-4 ">
-                                                                <h4 className="text-sm font-semibold mb-1 text-[#548687]">🧘 Meditation Breakdown</h4>
+                                                            <div className="mt-8 text-xs font-medium mb-4">
+                                                                <h4 className="text-sm font-semibold mb-1 text-[#548687]">
+                                                                    🧘 Meditation Breakdown
+                                                                </h4>
                                                                 <div className="grid grid-cols-2 gap-4">
                                                                     {Object.entries(results.statePercentages).map(([state, pct]) => (
                                                                         <div
@@ -503,11 +533,16 @@ export default function SignalVisualizer() {
                                                                         </div>
                                                                     ))}
                                                                 </div>
-                                                                <div className="mt-8 p-2  text-center rounded-md bg-emerald-100 dark:bg-emerald-900/20 text-emerald-800 dark:text-emerald-100 font-semibold text-xs">
+
+                                                                <div className="mt-8 p-2 text-center rounded-md bg-emerald-100 dark:bg-emerald-900/20 text-emerald-800 dark:text-emerald-100 font-semibold text-xs">
                                                                     {Number(results.goodMeditationPct) >= 75
-                                                                        ? `🌟 Excellent! You spent ${Math.round(Number(results.goodMeditationPct))}% in a strong meditative state.`
+                                                                        ? `🌟 Excellent! You spent ${Math.round(
+                                                                            Number(results.goodMeditationPct)
+                                                                        )}% in a strong meditative state.`
                                                                         : Number(results.goodMeditationPct) >= 50
-                                                                            ? `🌿 Great job! You spent ${Math.round(Number(results.goodMeditationPct))}% in a good meditation state.`
+                                                                            ? `🌿 Great job! You spent ${Math.round(
+                                                                                Number(results.goodMeditationPct)
+                                                                            )}% in a good meditation state.`
                                                                             : `⚠️ Keep practicing! You're on your way.`}
                                                                 </div>
                                                             </div>
@@ -516,32 +551,34 @@ export default function SignalVisualizer() {
                                                             <div className="mt-2 rounded-lg border border-yellow-300 bg-yellow-50 dark:bg-yellow-900/20 dark:border-yellow-700 text-xs font-medium text-yellow-800 dark:text-yellow-100 p-2">
                                                                 {(() => {
                                                                     const alphaPct = results.statePercentages.Relaxed;
-                                                                    const thetaPct = results.statePercentages["Deep Meditation"];
+                                                                    const thetaPct = results.statePercentages['Deep Meditation'];
                                                                     const betaPct = results.statePercentages.Focused;
 
-                                                                    const dominantText = results.mostFrequent === "alpha"
-                                                                        ? "a calm, relaxed state"
-                                                                        : results.mostFrequent === "theta"
-                                                                            ? "a deeply meditative state"
-                                                                            : results.mostFrequent === "beta"
-                                                                                ? "an alert or slightly stressed state"
-                                                                                : "a sleepy, resting state";
+                                                                    const dominantText =
+                                                                        results.mostFrequent === 'alpha'
+                                                                            ? 'a calm, relaxed state'
+                                                                            : results.mostFrequent === 'theta'
+                                                                                ? 'a deeply meditative state'
+                                                                                : results.mostFrequent === 'beta'
+                                                                                    ? 'an alert or slightly stressed state'
+                                                                                    : 'a sleepy, resting state';
 
-                                                                    const symmetry = Math.abs(Number(results.avgSymmetry)) < 0.05
-                                                                        ? "balanced"
-                                                                        : Number(results.avgSymmetry) > 0
-                                                                            ? `left hemisphere was slightly dominant (α=${alphaPct}%)`
-                                                                            : `right hemisphere was slightly dominant (β=${betaPct}%)`;
+                                                                    const symmetry =
+                                                                        Math.abs(Number(results.avgSymmetry)) < 0.05
+                                                                            ? 'balanced'
+                                                                            : Number(results.avgSymmetry) > 0
+                                                                                ? `left hemisphere was slightly dominant (α=${alphaPct}%)`
+                                                                                : `right hemisphere was slightly dominant (β=${betaPct}%)`;
 
-                                                                    const feedback = Number(betaPct) > 25
-                                                                        ? "Try reducing beta activity next time for deeper calm."
-                                                                        : "You're doing great—keep practicing regularly!";
+                                                                    const feedback =
+                                                                        Number(betaPct) > 25
+                                                                            ? 'Try reducing beta activity next time for deeper calm.'
+                                                                            : "You're doing great—keep practicing regularly!";
 
                                                                     return `You stayed in ${dominantText} for ${results.duration}, with strong alpha-theta presence (α=${alphaPct}%, θ=${thetaPct}%). Your ${symmetry}. ${feedback}`;
                                                                 })()}
                                                             </div>
                                                         </div>
-
                                                     </div>
                                                 </div>
                                             )}
@@ -551,13 +588,19 @@ export default function SignalVisualizer() {
                             </div>
                         </div>
 
+
                         {/* third card - device status */}
-                        <div className={`rounded-xl shadow-md p-3 border ${cardBg} flex flex-col transition-colors duration-300 h-1/4 min-h-0 overflow-hidden`}>
+                        <div className={`rounded-xl shadow-md  border ${cardBg} flex flex-col transition-colors duration-300 h-1/3 min-h-0 overflow-hidden`}>
 
                             <div className="flex-1 flex flex-col overflow-hidden">
                                 {/* Waveform Visualization - takes remaining space */}
-                                <div className="flex-1 min-h-0 overflow-hidden">
-
+                                <div className="flex-1  overflow-hidden">
+                                    {/* Replace your third card with the Quote Card */}
+                                    <QuoteCard
+                                        cardBg={cardBg}
+                                        refreshInterval={9000}
+                                        darkMode={darkMode}
+                                    />
                                 </div>
                             </div>
                         </div>
