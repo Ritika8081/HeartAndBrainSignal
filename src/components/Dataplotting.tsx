@@ -81,7 +81,6 @@ export default function SignalVisualizer() {
 
     const sampleCounterRef = useRef(0);
 
-
     // Create beating heart animation effect
     useEffect(() => {
         const interval = setInterval(() => {
@@ -182,8 +181,6 @@ export default function SignalVisualizer() {
             } else if (goal === "sleep") {
                 score = (smooth0.delta + smooth1.delta) / 2;
             }
-            const alphaDiff = smooth0.alpha - smooth1.alpha;
-            const betaDiff = smooth0.beta - smooth1.beta;
 
             const currentData = {
                 timestamp: Date.now(),
@@ -231,8 +228,6 @@ export default function SignalVisualizer() {
             });
         }
     }, []);
-
-
 
     const onNewECG = useCallback((ecg: number) => {
         ecgBufRef.current.push(ecg);
@@ -464,7 +459,7 @@ export default function SignalVisualizer() {
                                                                 darkMode={darkMode}
                                                             />
                                                         </div>
-                                                        <div className="m-8 p-6">
+                                                        <div className="mx-8 ">
                                                             <div className="flex justify-between items-center mb-2">
                                                                 <h4 className="text-sm font-semibold text-[#548687]">Session Complete: Meditation Insights</h4>
                                                                 <button
@@ -506,20 +501,20 @@ export default function SignalVisualizer() {
                                                             </div>
 
                                                             {/* Meditation Breakdown + Feedback */}
-                                                            <div className="mt-4 text-xs font-medium">
+                                                            <div className="mt-8 text-xs font-medium mb-4 ">
                                                                 <h4 className="text-sm font-semibold mb-1 text-[#548687]">🧘 Meditation Breakdown</h4>
-                                                                <div className="grid grid-cols-2 gap-1">
+                                                                <div className="grid grid-cols-2 gap-4">
                                                                     {Object.entries(results.statePercentages).map(([state, pct]) => (
                                                                         <div
                                                                             key={state}
-                                                                            className="flex justify-between px-2 py-1 rounded-md bg-gray-100 dark:bg-zinc-800"
+                                                                            className="flex justify-between px-2 py-4 rounded-md bg-gray-100 dark:bg-zinc-800"
                                                                         >
                                                                             <span>{state}</span>
                                                                             <span>{pct}%</span>
                                                                         </div>
                                                                     ))}
                                                                 </div>
-                                                                <div className="mt-2 p-2 text-center rounded-md bg-emerald-100 dark:bg-emerald-900/20 text-emerald-800 dark:text-emerald-100 font-semibold text-xs">
+                                                                <div className="mt-8 p-2  text-center rounded-md bg-emerald-100 dark:bg-emerald-900/20 text-emerald-800 dark:text-emerald-100 font-semibold text-xs">
                                                                     {Number(results.goodMeditationPct) >= 75
                                                                         ? `🌟 Excellent! You spent ${Math.round(Number(results.goodMeditationPct))}% in a strong meditative state.`
                                                                         : Number(results.goodMeditationPct) >= 50
