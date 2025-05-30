@@ -30,17 +30,13 @@ const MeditationAnalysis: React.FC<Props> = ({
       avgBeta: 0,
       avgTheta: 0,
       avgDelta: 0,
-      peakAlpha: 0,
-      deepestTheta: 0,
-      consistency: 0,
-      flowState: 0,
       statePercentages: {
         Relaxed: 0,
         Focused: 0,
         'Deep Meditation': 0,
         Drowsy: 0
       },
-      mostFrequent: 'alpha',
+      mostFrequent: 'Relaxed',
       phases: []
     };
 
@@ -50,51 +46,83 @@ const MeditationAnalysis: React.FC<Props> = ({
     const avgTheta = data.reduce((sum, s) => sum + s.theta, 0) / data.length;
     const avgDelta = data.reduce((sum, s) => sum + (s.delta ?? 0), 0) / data.length;
 
-    // Calculate state percentages (consistent with modal)
-    const totalSamples = data.length;
-    const stateCounts = {
-      Relaxed: data.filter(s => s.alpha > Math.max(s.beta, s.theta, s.delta ?? 0)).length,
-      Focused: data.filter(s => s.beta > Math.max(s.alpha, s.theta, s.delta ?? 0)).length,
-      'Deep Meditation': data.filter(s => s.theta > Math.max(s.alpha, s.beta, s.delta ?? 0)).length,
-      Drowsy: data.filter(s => (s.delta ?? 0) > Math.max(s.alpha, s.beta, s.theta)).length
+    // Consistent state classification logic
+    const classifyState = (alpha: number, beta: number, theta: number, delta: number) => {
+      const values = { alpha, beta, theta, delta };
+      const maxKey = Object.keys(values).reduce((a, b) => values[a] > values[b] ? a : b);
+
+      switch (maxKey) {
+        case 'alpha': return 'Relaxed';
+        case 'beta': return 'Focused';
+        case 'theta': return 'Deep Meditation';
+        case 'delta': return 'Drowsy';
+        default: return 'Relaxed';
+      }
     };
 
+    // Calculate state percentages for entire session
+    const stateCounts = { Relaxed: 0, Focused: 0, 'Deep Meditation': 0, Drowsy: 0 };
+
+    data.forEach(sample => {
+      const state = classifyState(sample.alpha, sample.beta, sample.theta, sample.delta ?? 0);
+      stateCounts[state]++;
+    });
+
+    const totalSamples = data.length;
     const statePercentages = {
       Relaxed: Math.round((stateCounts.Relaxed / totalSamples) * 100),
       Focused: Math.round((stateCounts.Focused / totalSamples) * 100),
-      'Deep Meditation': Math.round((stateCounts['Deep Meditation'] / totalSamples) * 100),
+      'Meditation': Math.round((stateCounts['Deep Meditation'] / totalSamples) * 100),
       Drowsy: Math.round((stateCounts.Drowsy / totalSamples) * 100)
     };
 
-    // Determine most frequent state
+    // Most frequent state
     const mostFrequent = Object.entries(stateCounts).reduce((a, b) => a[1] > b[1] ? a : b)[0];
 
-    // Flow state score
-    const flowState = Math.min(1, (avgAlpha + avgTheta) * 0.6 + (1 - avgBeta) * 0.4);
+    // Create exactly 12 phases
+    const phases: Array<{
+      phase: string;
+      alpha: number;
+      theta: number;
+      beta: number;
+      delta: number;
+      stateHeights: { relaxed: number; focused: number; deep: number; drowsy: number };
+    }> = [];
 
-    // Phase segmentation for visualization only
-    const phases: Array<{ phase: string; alpha: number; theta: number; beta: number; height: number }> = [];
-    const numPhases = 8;
+    const numPhases = 12;
     const phaseLength = Math.ceil(data.length / numPhases);
 
-    for (let i = 0; i < data.length; i += phaseLength) {
-      const segment = data.slice(i, i + phaseLength);
+    for (let i = 0; i < numPhases; i++) {
+      const startIdx = i * phaseLength;
+      const endIdx = Math.min(startIdx + phaseLength, data.length);
+      const segment = data.slice(startIdx, endIdx);
+
+      if (segment.length === 0) continue;
+
       const avgA = segment.reduce((sum, s) => sum + s.alpha, 0) / segment.length;
-      const avgT = segment.reduce((sum, s) => sum + s.theta, 0) / segment.length;
       const avgB = segment.reduce((sum, s) => sum + s.beta, 0) / segment.length;
+      const avgT = segment.reduce((sum, s) => sum + s.theta, 0) / segment.length;
       const avgD = segment.reduce((sum, s) => sum + (s.delta ?? 0), 0) / segment.length;
 
-      // Determine phase by highest average
-      const phaseName = avgA > Math.max(avgB, avgT, avgD) ? 'relaxed' :
-        avgB > Math.max(avgA, avgT, avgD) ? 'focused' :
-          avgT > Math.max(avgA, avgB, avgD) ? 'deep' : 'drowsy';
+      // Determine dominant phase
+      const phaseName = classifyState(avgA, avgB, avgT, avgD).toLowerCase().replace(' ', '');
+
+      // Calculate heights for stacked bars (normalize to 0-1 range)
+      const total = avgA + avgB + avgT + avgD;
+      const stateHeights = {
+        relaxed: total > 0 ? avgA / total : 0,
+        focused: total > 0 ? avgB / total : 0,
+        deep: total > 0 ? avgT / total : 0,
+        drowsy: total > 0 ? avgD / total : 0
+      };
 
       phases.push({
         phase: phaseName,
         alpha: avgA,
         theta: avgT,
         beta: avgB,
-        height: Math.max(0.2, (avgA + avgT) * 0.8)
+        delta: avgD,
+        stateHeights
       });
     }
 
@@ -105,14 +133,15 @@ const MeditationAnalysis: React.FC<Props> = ({
       avgDelta,
       statePercentages,
       mostFrequent,
-      flowState,
       phases
     };
   };
 
+
   const metrics = calculateMetrics();
   const meditationScore = Math.min(100, Math.round(metrics.flowState * 100));
 
+  // Replace the useEffect canvas rendering with this:
   useEffect(() => {
     const canvas = canvasRef.current;
     const ctx = canvas?.getContext('2d');
@@ -121,65 +150,88 @@ const MeditationAnalysis: React.FC<Props> = ({
     const width = canvas.width;
     const height = canvas.height;
     const padding = 20;
-    const barWidth = (width - padding * 2) / metrics.phases.length;
+    const barWidth = (width - padding * 2) / 12; // Fixed 12 phases
+    const maxBarHeight = height - padding * 2;
 
     ctx.clearRect(0, 0, width, height);
 
+    // Background gradient
     const bgGradient = ctx.createLinearGradient(0, 0, 0, height);
     bgGradient.addColorStop(0, 'rgba(15, 23, 42, 0.9)');
     bgGradient.addColorStop(1, 'rgba(15, 23, 42, 0.4)');
     ctx.fillStyle = bgGradient;
     ctx.fillRect(0, 0, width, height);
 
+    // State colors
+    const stateColors = {
+      relaxed: ['#06b6d4', '#0891b2', '#0e7490'],
+      focused: ['#f59e0b', '#d97706', '#b45309'],
+      deep: ['#8b5cf6', '#a855f7', '#6366f1'],
+      drowsy: ['#fbbf24', '#f59e0b', '#d97706']
+    };
+
     metrics.phases.forEach((phase, i) => {
       const x = padding + i * barWidth;
-      const barHeight = phase.height * (height - padding * 2);
-      const y = height - padding - barHeight;
+      const baseY = height - padding;
 
-      let gradient;
-      switch (phase.phase) {
-        case 'deep':
-          gradient = ctx.createLinearGradient(x, y, x, y + barHeight);
-          gradient.addColorStop(0, '#8b5cf6');
-          gradient.addColorStop(0.5, '#a855f7');
-          gradient.addColorStop(1, '#6366f1');
-          break;
-        case 'relaxed':
-          gradient = ctx.createLinearGradient(x, y, x, y + barHeight);
-          gradient.addColorStop(0, '#06b6d4');
-          gradient.addColorStop(0.5, '#0891b2');
-          gradient.addColorStop(1, '#0e7490');
-          break;
-        case 'focused':
-          gradient = ctx.createLinearGradient(x, y, x, y + barHeight);
-          gradient.addColorStop(0, '#f59e0b');
-          gradient.addColorStop(0.5, '#d97706');
-          gradient.addColorStop(1, '#b45309');
-          break;
-        case 'drowsy':
-          gradient = ctx.createLinearGradient(x, y, x, y + barHeight);
-          gradient.addColorStop(0, '#fbbf24');
-          gradient.addColorStop(0.5, '#f59e0b');
-          gradient.addColorStop(1, '#d97706');
-          break;
-      }
+      // Draw stacked horizontal bars
+      let currentY = baseY;
+      const states = ['drowsy', 'deep', 'focused', 'relaxed'] as const;
 
-      ctx.fillStyle = gradient || 'rgba(100,116,139,0.6)';
-      ctx.beginPath();
-      ctx.roundRect(x + 2, y, barWidth - 4, barHeight, 4);
-      ctx.fill();
+      states.forEach((state, stateIndex) => {
+        const stateHeight = phase.stateHeights[state] * maxBarHeight * 0.8; // Scale down for better visibility
+
+        if (stateHeight > 2) { // Only draw if significant
+          const gradient = ctx.createLinearGradient(x, currentY - stateHeight, x, currentY);
+          const colors = stateColors[state];
+          gradient.addColorStop(0, colors[0]);
+          gradient.addColorStop(0.5, colors[1]);
+          gradient.addColorStop(1, colors[2]);
+
+          ctx.fillStyle = gradient;
+          ctx.beginPath();
+          ctx.roundRect(x + 2, currentY - stateHeight, barWidth - 4, stateHeight, 2);
+          ctx.fill();
+
+          currentY -= stateHeight;
+        }
+      });
     });
 
     // Time labels
     ctx.fillStyle = 'rgba(148, 163, 184, 0.6)';
     ctx.font = '10px system-ui';
     ctx.textAlign = 'center';
-    for (let i = 0; i <= 4; i++) {
-      const x = padding + (width - padding * 2) * (i / 4);
-      const timeLabel = Math.round((sessionDuration / 4) * i) + 'm';
+    // Calculate actual session duration in seconds from timestamp data
+    let actualSessionDurationSeconds: number;
+    if (data.length > 1 && data[0].timestamp && data[data.length - 1].timestamp) {
+      actualSessionDurationSeconds = (data[data.length - 1].timestamp! - data[0].timestamp!) / 1000;
+    } else {
+      // Fallback to sessionDuration prop if timestamps not available
+      actualSessionDurationSeconds = sessionDuration * 60;
+    }
+
+    // Calculate time per phase in seconds (divide by 12 phases)
+    const timePerPhase = actualSessionDurationSeconds / 12;
+
+    // Show labels for every 3rd phase (0, 3, 6, 9, 12) to avoid overcrowding
+    for (let i = 0; i <= 12; i += 3) {
+      const x = padding + (width - padding * 2) * (i / 12);
+      const timeInSeconds = Math.round(timePerPhase * i);
+
+      let timeLabel: string;
+      if (timeInSeconds < 60) {
+        timeLabel = `${timeInSeconds}s`;
+      } else {
+        const minutes = Math.floor(timeInSeconds / 60);
+        const seconds = timeInSeconds % 60;
+        timeLabel = seconds === 0 ? `${minutes}m` : `${minutes}m${seconds}s`;
+      }
+
       ctx.fillText(timeLabel, x, height - 5);
     }
   }, [data, metrics.phases, sessionDuration]);
+
 
   const getPhaseColor = (phase: string) => {
     switch (phase.toLowerCase()) {
@@ -209,7 +261,7 @@ const MeditationAnalysis: React.FC<Props> = ({
             <div key={state} className="text-center">
               <div className={`w-3 h-3 rounded-full mx-auto mb-1 bg-gradient-to-r ${getPhaseColor(state)}`}></div>
               <div className="text-xs text-slate-300">{state}</div>
-              <div className="text-xs text-slate-500">{pct}%</div>
+
             </div>
           ))}
         </div>
@@ -229,20 +281,6 @@ const MeditationAnalysis: React.FC<Props> = ({
           </p>
         </div>
 
-        {/* Progress Bar */}
-        <div className="mt-4">
-          <div className="flex justify-between text-xs text-slate-400 mb-2">
-            <span>Progress to next level</span>
-            <span>{Math.min(100, meditationScore + 15)}%</span>
-          </div>
-          <div className="w-full bg-slate-700 rounded-full h-2">
-            <div className={`h-2 rounded-full bg-gradient-to-r ${meditationScore >= 80 ? 'from-emerald-400 to-green-500' :
-                meditationScore >= 60 ? 'from-yellow-400 to-amber-500' :
-                  'from-orange-400 to-red-500'
-              }`}
-              style={{ width: `${Math.min(100, meditationScore + 15)}%` }}></div>
-          </div>
-        </div>
       </div>
     </div>
   );
