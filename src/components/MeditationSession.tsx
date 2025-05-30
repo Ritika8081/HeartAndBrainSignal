@@ -211,10 +211,7 @@ export const MeditationSession = ({
                     !sessionResults ? (
                         // Start Session UI
                         <div className="space-y-2 animate-in fade-in duration-300 h-full flex flex-col">
-                            <div className="text-center">
-                                <h3 className={`text-sm font-semibold ${textPrimary} mb-1`}>Begin Session</h3>
-                               
-                            </div>
+                           
 
                             <div className="flex-1 flex flex-col justify-center space-y-1">
                                 <label className={`text-xs font-medium ${textSecondary}`}>Duration</label>

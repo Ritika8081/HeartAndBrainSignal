@@ -166,13 +166,14 @@ const MeditationAnalysis: React.FC<Props> = ({
     ctx.fillStyle = bgGradient;
     ctx.fillRect(0, 0, width, height);
 
-    // State colors
     const stateColors = {
-      relaxed: ['#06b6d4', '#0891b2', '#0e7490'],
-      focused: ['#f59e0b', '#d97706', '#b45309'],
-      deep: ['#8b5cf6', '#a855f7', '#6366f1'],
-      drowsy: ['#fbbf24', '#f59e0b', '#d97706']
-    };
+  relaxed: ['#06b6d4', '#0891b2', '#0e7490'],   // bright blues, unchanged
+  focused: ['#f59e0b', '#d97706', '#b45309'],   // bright yellows/oranges, unchanged
+  deep: ['#8b5cf6', '#a855f7', '#6366f1'],      // purples, unchanged
+ drowsy: ['#8b6b47', '#c19a65', '#9a8f8f']  // includes a soft greyish color
+
+};
+
 
     metrics.phases.forEach((phase, i) => {
       const x = padding + i * barWidth;
@@ -239,13 +240,14 @@ const MeditationAnalysis: React.FC<Props> = ({
 
   const getPhaseColor = (phase: string) => {
     switch (phase.toLowerCase()) {
-      case 'deep': return 'from-purple-500 to-indigo-600';
+     case 'meditation': return 'from-purple-500 to-indigo-600';
       case 'relaxed': return 'from-cyan-500 to-blue-600';
       case 'focused': return 'from-amber-500 to-orange-600';
-      case 'drowsy': return 'from-yellow-400 to-amber-500';
+    case 'drowsy': return 'from-[#8b6b47] to-[#a0785a]';
       default: return 'from-slate-500 to-slate-600';
     }
   };
+  
 
   return (
     <div className={`w-full max-w-xl mx-auto bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 rounded-sm overflow-hidden shadow-2xl ${className}`}>

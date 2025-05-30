@@ -388,30 +388,34 @@ export default function SignalVisualizer() {
                 <div className="grid grid-cols-1 md:grid-cols-5 gap-3 h-full min-h-0 overflow-hidden">
                     {/* First Column (20%) - Device Info */}
                     <div className="md:col-span-1 flex flex-col gap-3 h-full min-h-0 overflow-hidden">
+                        {/* Optional: Connection status text */}
+
                         {/* First card - device connection */}
-                        <div className={`rounded-xl shadow-md p-3 border ${cardBg} flex flex-col items-center transition-colors duration-300 h-1/3 min-h-0 overflow-hidden`}>
+                        <div className={`relative rounded-xl shadow-md p-3 border ${cardBg} flex flex-col items-center transition-colors duration-300 h-1/3 min-h-0 overflow-hidden`}>
+
+
                             <div className="flex-1 flex flex-col items-center justify-center w-full">
                                 <div className={`p-3 rounded-full mb-2 ${iconBoxBg} transition-colors duration-300`}>
                                     <Box className={primaryAccent} strokeWidth={1.5} />
                                 </div>
                             </div>
+
+                            {/* Connect/Disconnect Button */}
                             <div className="w-full flex justify-center mb-2 mt-auto">
                                 <button
-                                    onClick={connect}
-                                    disabled={connected}
-                                    className={`m-1 px-1 py-1.5 sm:px-2 sm:py-2 md:px-3 md:py-3 text-[0.6em] sm:text-[0.7em] md:text-[0.8em] rounded-xl font-semibold transition-colors duration-300 ${primaryAccent} ${cardBg} border ${connected ? "bg-[#548687]" : "bg-[#7C9885]"}`}
+                                    onClick={connected ? disconnect : connect}
+                                    className={`relative m-1 px-3 py-1 sm:px-4 sm:py-3 md:px-6 md:py-2 text-xs sm:text-sm md:text-base rounded-xl font-semibold transition-all duration-300 ${primaryAccent} ${cardBg} border flex items-center gap-2 ${connected
+                                        ? "bg-[#548687] hover:bg-gray-300 border-green-400"
+                                        : "bg-[#7C9885] hover:bg-gray-300 border-gray-400"
+                                        }`}
                                 >
-                                    {connected ? "Connected" : "Connect"}
-                                </button>
-                                <button
-                                    onClick={disconnect}
-                                    disabled={!connected}
-                                    className={`m-1 px-1 py-1.5 sm:px-2 sm:py-2 md:px-3 md:py-3 text-[0.6em] sm:text-[0.7em] md:text-[0.8em] rounded-xl font-semibold transition-colors duration-300 ${primaryAccent} ${cardBg} border ${connected ? "bg-[#D9777B] hover:bg-[#C7696D]" : "bg-gray-400 cursor-not-allowed"}`}
-                                >
-                                    {connected ? "Disconnect" : "Disconnected"}
+
+
+                                    {connected ? "Disconnect" : "Connect"}
                                 </button>
                             </div>
                         </div>
+
 
                         {/* second card - Meditation View (Last Session Preview with Modal) */}
                         <div
@@ -585,7 +589,7 @@ export default function SignalVisualizer() {
 
 
                         {/* third card - device status */}
-                        <div className={`rounded-xl shadow-md  border ${cardBg} flex flex-col transition-colors duration-300 h-1/3 min-h-0 overflow-hidden`}>
+                        <div className={`rounded-xl    ${cardBg} flex flex-col transition-colors duration-300 h-1/3 min-h-0 overflow-hidden`}>
 
                             <div className="flex-1 flex flex-col overflow-hidden">
                                 {/* Waveform Visualization - takes remaining space */}
