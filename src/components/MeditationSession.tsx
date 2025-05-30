@@ -220,12 +220,12 @@ export const MeditationSession = ({
                                 <label className={`text-xs font-medium ${textSecondary}`}>Duration</label>
 
                                 {/* Preset Buttons */}
-                                <div className="flex flex-row flex-wrap gap-2">
-                                    {[1, 5, 10].map((val) => (
+                                <div className="flex flex-row flex-wrap gap-1">
+                                    {[3, 5, 10, 15].map((val) => (
                                         <button
                                             key={val}
                                             onClick={() => setDuration(val)}
-                                            className={`px-3 py-2 rounded-lg border font-medium text-sm transition-all duration-200 
+                                            className={`px-2 py-1 rounded-lg border font-medium text-sm transition-all duration-200 
                     ${duration === val
                                                     ? "bg-[#D9777B] text-white border-transparent"
                                                     : `bg-white dark:bg-zinc-800 text-gray-700 dark:text-gray-200 border-gray-300 dark:border-zinc-600`

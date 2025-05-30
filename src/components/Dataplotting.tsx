@@ -561,8 +561,6 @@ export default function SignalVisualizer() {
                                 </div>
                             </div>
                         </div>
-
-                       
                     </div>
 
                     {/* Second Column (40%) - EEG */}
