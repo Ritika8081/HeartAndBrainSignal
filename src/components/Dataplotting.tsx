@@ -412,18 +412,7 @@ export default function SignalVisualizer() {
                             </div>
                         </div>
 
-                        {/* Second card - device status */}
-                        <div className={`rounded-xl shadow-md p-3 border ${cardBg} flex flex-col transition-colors duration-300 h-1/4 min-h-0 overflow-hidden`}>
-
-                            <div className="flex-1 flex flex-col overflow-hidden">
-                                {/* Waveform Visualization - takes remaining space */}
-                                <div className="flex-1 min-h-0 overflow-hidden">
-
-                                </div>
-                            </div>
-                        </div>
-
-                        {/* Third card - Meditation View (Last Session Preview with Modal) */}
+                         {/* second card - Meditation View (Last Session Preview with Modal) */}
                         <div className={`rounded-xl shadow-md p-3 border ${cardBg} flex flex-col transition-colors duration-300 h-1/3 min-h-0 overflow-hidden`}>
                             <h3 className="text-base font-semibold mb-2 text-[#C29963]">Meditation</h3>
                             <div className="flex-1 min-h-0 overflow-hidden flex flex-col">
@@ -561,6 +550,19 @@ export default function SignalVisualizer() {
                                 />
                             </div>
                         </div>
+
+                        {/* third card - device status */}
+                        <div className={`rounded-xl shadow-md p-3 border ${cardBg} flex flex-col transition-colors duration-300 h-1/4 min-h-0 overflow-hidden`}>
+
+                            <div className="flex-1 flex flex-col overflow-hidden">
+                                {/* Waveform Visualization - takes remaining space */}
+                                <div className="flex-1 min-h-0 overflow-hidden">
+
+                                </div>
+                            </div>
+                        </div>
+
+                       
                     </div>
 
                     {/* Second Column (40%) - EEG */}
