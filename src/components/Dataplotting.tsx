@@ -464,7 +464,6 @@ if (timeSinceConnection < STATE_UPDATE_INTERVAL) {
                 <div className="grid grid-cols-1 md:grid-cols-5 gap-3 h-full min-h-0 overflow-hidden">
                     {/* First Column (20%) - Device Info */}
                     <div className="md:col-span-1 flex flex-col gap-3 h-full min-h-0 overflow-hidden">
-                        {/* Optional: Connection status text */}
 
                         {/* First card - device connection */}
                         <div className={`relative rounded-xl shadow-md p-3 border ${cardBg} flex flex-col items-center transition-colors duration-300 h-1/3 min-h-0 overflow-hidden`}>

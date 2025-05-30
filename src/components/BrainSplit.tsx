@@ -1,3 +1,4 @@
+'use client';
 import React from 'react';
 import { motion, useSpring, useTransform, MotionValue } from 'framer-motion';
 import { Brain } from 'lucide-react';

@@ -247,7 +247,7 @@ export const MeditationSession = ({
                         // Session Results UI
                         <div className="h-full flex flex-col animate-in fade-in duration-500 overflow-hidden">
                             <div className="text-center flex flex-row">
-                                <h4 className={`text-sm font-semibold ${textPrimary}`}>Session Complete : meditation insights</h4>
+                                <h4 className={`text-sm font-semibold ${textPrimary}`}>Session Complete</h4>
 
                             </div>
 

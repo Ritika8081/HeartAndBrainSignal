@@ -1,3 +1,4 @@
+'Use strict';
 // components/StateIndicator.tsx
 import React from "react";
 

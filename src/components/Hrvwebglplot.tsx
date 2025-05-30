@@ -1,3 +1,4 @@
+'use client';
 import React, { useEffect, useRef, useImperativeHandle, forwardRef } from 'react';
 import { WebglPlot, WebglLine, ColorRGBA } from 'webgl-plot';
 
