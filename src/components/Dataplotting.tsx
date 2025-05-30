@@ -43,7 +43,12 @@ export default function SignalVisualizer() {
     const dataProcessorWorkerRef = useRef<Worker | null>(null);
     // Animation state
     const [isBeating, setIsBeating] = useState(false);
-    const [userState, setUserState] = useState<State>("relaxed");
+    const [userState, setUserState] = useState<State>("no_data");
+    const [displayState, setDisplayState] = useState<State>("no_data");
+    const stateWindowRef = useRef<{ state: State; timestamp: number }[]>([]);
+    const lastStateUpdateRef = useRef<number>(0);
+    const connectionStartRef = useRef<number | null>(null);
+
     // 1) Create refs for each display element
     const currentRef = useRef<HTMLDivElement>(null);
     const highRef = useRef<HTMLDivElement>(null);
@@ -307,8 +312,60 @@ export default function SignalVisualizer() {
             if (hrvAvgRef.current) hrvAvgRef.current.textContent = hrvAvg !== null ? `${hrvAvg}` : "--";
 
 
-            const state = predictState({ sdnn, rmssd, pnn50 });
-            setUserState(state);
+            const currentState = predictState({ sdnn, rmssd, pnn50 });
+setUserState(currentState);
+
+// State window management for 5-second updates
+const now = Date.now();
+
+// Initialize connection time
+if (connectionStartRef.current === null) {
+    connectionStartRef.current = now;
+    lastStateUpdateRef.current = now;
+}
+
+// Add current state to window
+stateWindowRef.current.push({
+    state: currentState,
+    timestamp: now
+});
+
+// Remove states older than 5 seconds
+// Configuration - easy to change
+const STATE_UPDATE_INTERVAL = 5000; // 5 seconds in milliseconds
+const fiveSecondsAgo = now - STATE_UPDATE_INTERVAL;
+stateWindowRef.current = stateWindowRef.current.filter(
+    item => item.timestamp >= fiveSecondsAgo
+);
+
+// Check if it's time to update display state (every 5 seconds)
+const timeSinceLastUpdate = now - lastStateUpdateRef.current;
+const timeSinceConnection = now - connectionStartRef.current;
+
+if (timeSinceConnection < STATE_UPDATE_INTERVAL) {
+    // Show "no_data" for first 5 seconds
+    setDisplayState("no_data");
+} else if (timeSinceLastUpdate >= STATE_UPDATE_INTERVAL) {
+    // Update display state every 5 seconds
+    if (stateWindowRef.current.length > 0) {
+        // Count frequency of each state in the last 5 seconds
+        const stateCounts: Record<string, number> = {};
+        stateWindowRef.current.forEach(item => {
+            stateCounts[item.state] = (stateCounts[item.state] || 0) + 1;
+        });
+
+        // Find the most dominant state
+        const dominantState = Object.entries(stateCounts).reduce((a, b) => 
+            a[1] > b[1] ? a : b
+        )[0] as State;
+
+        setDisplayState(dominantState);
+        lastStateUpdateRef.current = now;
+        
+        console.log(`State updated: ${dominantState} (based on ${stateWindowRef.current.length} samples)`);
+    }
+}
+
         };
 
 
@@ -322,6 +379,25 @@ export default function SignalVisualizer() {
     useEffect(() => {
         isMeditatingRef.current = viewMode === "meditation";
     }, [viewMode]);
+
+    useEffect(() => {
+    if (connected) {
+        // Reset all state tracking when device connects
+        connectionStartRef.current = Date.now();
+        lastStateUpdateRef.current = Date.now();
+        stateWindowRef.current = [];
+        setDisplayState("no_data");
+        setUserState("no_data");
+    } else {
+        // Reset when device disconnects
+        connectionStartRef.current = null;
+        lastStateUpdateRef.current = 0;
+        stateWindowRef.current = [];
+        setDisplayState("no_data");
+        setUserState("no_data");
+    }
+}, [connected]);
+
 
     // 5) Hook into your existing dataProcessor worker
     useEffect(() => {
@@ -824,7 +900,7 @@ export default function SignalVisualizer() {
 
                                 {/* Affective State */}
                                 <div className="flex items-center gap-2">
-                                    <StateIndicator state={userState} />
+                                    <StateIndicator state={displayState} />
                                 </div>
 
                                 {/* Divider Line */}
