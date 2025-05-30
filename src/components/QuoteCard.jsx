@@ -49,7 +49,7 @@ const QuoteCard = ({ cardBg = 'bg-white', refreshInterval = 30000, darkMode = fa
   }
 
   return (
-      <div className={`rounded-xl shadow-md p-4 border ${cardBg} flex flex-col transition-colors duration-300 h-1/4 min-h-[200px] overflow-hidden group hover:shadow-lg`}>
+      <div className={`rounded-xl shadow-md p-4 border ${cardBg} flex flex-col transition-colors duration-300 h-full min-h-[200px] overflow-hidden group hover:shadow-lg`}>
       {/* Header with category badge and refresh button */}
       <div className="flex justify-between items-center mb-3">
         <span className={`px-3 py-1 rounded-full text-xs font-medium capitalize ${

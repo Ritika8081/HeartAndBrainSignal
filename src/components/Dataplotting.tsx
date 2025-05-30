@@ -415,7 +415,7 @@ export default function SignalVisualizer() {
 
                         {/* second card - Meditation View (Last Session Preview with Modal) */}
                         <div
-                            className={`rounded-xl shadow-md p-1 sm:p-2 md:p-3 border ${cardBg} flex flex-col transition-colors duration-300 min-h-0 h-auto overflow-hidden w-full`}
+                            className={`rounded-xl shadow-md p-1 sm:p-2 md:p-3 border ${cardBg} flex flex-col transition-colors duration-300 min-h-0 h-1/3 overflow-hidden w-full `}
                         >
                             <h3 className="text-base md:text-lg font-semibold mb-2 text-[#C29963]">Meditation</h3>
                             <div className="flex-1 min-h-0 overflow-hidden flex flex-col">

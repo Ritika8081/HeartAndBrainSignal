@@ -30,6 +30,9 @@ const MeditationAnalysis: React.FC<Props> = ({
       avgBeta: 0,
       avgTheta: 0,
       avgDelta: 0,
+        deepestTheta: 0,
+      consistency: 0,
+      flowState: 0,
       statePercentages: {
         Relaxed: 0,
         Focused: 0,
@@ -49,7 +52,7 @@ const MeditationAnalysis: React.FC<Props> = ({
     // Consistent state classification logic
     const classifyState = (alpha: number, beta: number, theta: number, delta: number) => {
       const values = { alpha, beta, theta, delta };
-      const maxKey = Object.keys(values).reduce((a, b) => values[a] > values[b] ? a : b);
+       const maxKey = Object.keys(values).reduce((a, b) => values[a as keyof typeof values] > values[b as keyof typeof values] ? a : b);
 
       switch (maxKey) {
         case 'alpha': return 'Relaxed';
@@ -139,7 +142,8 @@ const MeditationAnalysis: React.FC<Props> = ({
 
 
   const metrics = calculateMetrics();
-  const meditationScore = Math.min(100, Math.round(metrics.flowState * 100));
+  const meditationScore = Math.min(100, Math.round((metrics.flowState ?? 0) * 100));
+
 
   // Replace the useEffect canvas rendering with this:
   useEffect(() => {
