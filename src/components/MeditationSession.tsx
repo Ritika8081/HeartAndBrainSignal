@@ -103,7 +103,7 @@ export const MeditationSession = ({
         const statePercentages = {
             Relaxed: ((averages.alpha / totalPower) * 100).toFixed(1),
             Focused: ((averages.beta / totalPower) * 100).toFixed(1),
-            "Deep Meditation": ((averages.theta / totalPower) * 100).toFixed(1),
+            "Meditation": ((averages.theta / totalPower) * 100).toFixed(1),
             Drowsy: ((averages.delta / totalPower) * 100).toFixed(1),
         };
 
@@ -125,7 +125,7 @@ export const MeditationSession = ({
             mentalState = 'Focused';
             stateDescription = 'Your mind was highly alert or active. Try to slow down your breath to enter a calmer state.';
         } else if (mostFrequent === 'theta') {
-            mentalState = 'Deep Meditation';
+            mentalState = 'Meditation';
             stateDescription = 'You entered a deeply meditative state—excellent work.';
         } else if (mostFrequent === 'delta') {
             mentalState = 'Drowsy';

@@ -189,7 +189,7 @@ export default function SignalVisualizer() {
                 beta: (smooth0.beta + smooth1.beta) / 2,
                 theta: (smooth0.theta + smooth1.theta) / 2,
                 delta: (smooth0.delta + smooth1.delta) / 2,
-                symmetry: smooth0.alpha - smooth1.alpha,
+                symmetry: Math.abs(smooth0.alpha - smooth1.alpha),
             };
 
             // ✅ Only record data if meditating
@@ -473,15 +473,10 @@ export default function SignalVisualizer() {
                                                             <div className="flex flex-col gap-1">
                                                                 {/* Mental State */}
                                                                 <div className="text-xs font-semibold text-center text-[#548687]">
-                                                                    {results.mostFrequent === 'alpha'
-                                                                        ? '🧘 Relaxation'
-                                                                        : results.mostFrequent === 'theta'
-                                                                            ? '🛌 Deep Meditation'
-                                                                            : results.mostFrequent === 'beta'
-                                                                                ? '🎯 Focus'
-                                                                                : results.mostFrequent === 'delta'
-                                                                                    ? '💤 Sleep'
-                                                                                    : '⚪ Neutral'}
+                                                                    {results.mostFrequent === 'alpha' ? '🧘 Relaxation' :
+                                                                        results.mostFrequent === 'theta' ? '🛌 Meditation' :
+                                                                            results.mostFrequent === 'beta' ? '🎯 Focus' :
+                                                                                results.mostFrequent === 'delta' ? '💤 Sleep' : '⚪ Neutral'}
                                                                 </div>
 
                                                                 {/* Summary Grid */}
@@ -551,7 +546,7 @@ export default function SignalVisualizer() {
                                                             <div className="mt-2 rounded-lg border border-yellow-300 bg-yellow-50 dark:bg-yellow-900/20 dark:border-yellow-700 text-xs font-medium text-yellow-800 dark:text-yellow-100 p-2">
                                                                 {(() => {
                                                                     const alphaPct = results.statePercentages.Relaxed;
-                                                                    const thetaPct = results.statePercentages['Deep Meditation'];
+                                                                    const thetaPct = results.statePercentages["Meditation"];
                                                                     const betaPct = results.statePercentages.Focused;
 
                                                                     const dominantText =
