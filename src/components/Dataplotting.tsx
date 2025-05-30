@@ -313,58 +313,58 @@ export default function SignalVisualizer() {
 
 
             const currentState = predictState({ sdnn, rmssd, pnn50 });
-setUserState(currentState);
+            setUserState(currentState);
 
-// State window management for 5-second updates
-const now = Date.now();
+            // State window management for 5-second updates
+            const now = Date.now();
 
-// Initialize connection time
-if (connectionStartRef.current === null) {
-    connectionStartRef.current = now;
-    lastStateUpdateRef.current = now;
-}
+            // Initialize connection time
+            if (connectionStartRef.current === null) {
+                connectionStartRef.current = now;
+                lastStateUpdateRef.current = now;
+            }
 
-// Add current state to window
-stateWindowRef.current.push({
-    state: currentState,
-    timestamp: now
-});
+            // Add current state to window
+            stateWindowRef.current.push({
+                state: currentState,
+                timestamp: now
+            });
 
-// Remove states older than 5 seconds
-// Configuration - easy to change
-const STATE_UPDATE_INTERVAL = 5000; // 5 seconds in milliseconds
-const fiveSecondsAgo = now - STATE_UPDATE_INTERVAL;
-stateWindowRef.current = stateWindowRef.current.filter(
-    item => item.timestamp >= fiveSecondsAgo
-);
+            // Remove states older than 5 seconds
+            // Configuration - easy to change
+            const STATE_UPDATE_INTERVAL = 5000; // 5 seconds in milliseconds
+            const fiveSecondsAgo = now - STATE_UPDATE_INTERVAL;
+            stateWindowRef.current = stateWindowRef.current.filter(
+                item => item.timestamp >= fiveSecondsAgo
+            );
 
-// Check if it's time to update display state (every 5 seconds)
-const timeSinceLastUpdate = now - lastStateUpdateRef.current;
-const timeSinceConnection = now - connectionStartRef.current;
+            // Check if it's time to update display state (every 5 seconds)
+            const timeSinceLastUpdate = now - lastStateUpdateRef.current;
+            const timeSinceConnection = now - connectionStartRef.current;
 
-if (timeSinceConnection < STATE_UPDATE_INTERVAL) {
-    // Show "no_data" for first 5 seconds
-    setDisplayState("no_data");
-} else if (timeSinceLastUpdate >= STATE_UPDATE_INTERVAL) {
-    // Update display state every 5 seconds
-    if (stateWindowRef.current.length > 0) {
-        // Count frequency of each state in the last 5 seconds
-        const stateCounts: Record<string, number> = {};
-        stateWindowRef.current.forEach(item => {
-            stateCounts[item.state] = (stateCounts[item.state] || 0) + 1;
-        });
+            if (timeSinceConnection < STATE_UPDATE_INTERVAL) {
+                // Show "no_data" for first 5 seconds
+                setDisplayState("no_data");
+            } else if (timeSinceLastUpdate >= STATE_UPDATE_INTERVAL) {
+                // Update display state every 5 seconds
+                if (stateWindowRef.current.length > 0) {
+                    // Count frequency of each state in the last 5 seconds
+                    const stateCounts: Record<string, number> = {};
+                    stateWindowRef.current.forEach(item => {
+                        stateCounts[item.state] = (stateCounts[item.state] || 0) + 1;
+                    });
 
-        // Find the most dominant state
-        const dominantState = Object.entries(stateCounts).reduce((a, b) => 
-            a[1] > b[1] ? a : b
-        )[0] as State;
+                    // Find the most dominant state
+                    const dominantState = Object.entries(stateCounts).reduce((a, b) =>
+                        a[1] > b[1] ? a : b
+                    )[0] as State;
 
-        setDisplayState(dominantState);
-        lastStateUpdateRef.current = now;
-        
-        console.log(`State updated: ${dominantState} (based on ${stateWindowRef.current.length} samples)`);
-    }
-}
+                    setDisplayState(dominantState);
+                    lastStateUpdateRef.current = now;
+
+                    console.log(`State updated: ${dominantState} (based on ${stateWindowRef.current.length} samples)`);
+                }
+            }
 
         };
 
@@ -381,22 +381,22 @@ if (timeSinceConnection < STATE_UPDATE_INTERVAL) {
     }, [viewMode]);
 
     useEffect(() => {
-    if (connected) {
-        // Reset all state tracking when device connects
-        connectionStartRef.current = Date.now();
-        lastStateUpdateRef.current = Date.now();
-        stateWindowRef.current = [];
-        setDisplayState("no_data");
-        setUserState("no_data");
-    } else {
-        // Reset when device disconnects
-        connectionStartRef.current = null;
-        lastStateUpdateRef.current = 0;
-        stateWindowRef.current = [];
-        setDisplayState("no_data");
-        setUserState("no_data");
-    }
-}, [connected]);
+        if (connected) {
+            // Reset all state tracking when device connects
+            connectionStartRef.current = Date.now();
+            lastStateUpdateRef.current = Date.now();
+            stateWindowRef.current = [];
+            setDisplayState("no_data");
+            setUserState("no_data");
+        } else {
+            // Reset when device disconnects
+            connectionStartRef.current = null;
+            lastStateUpdateRef.current = 0;
+            stateWindowRef.current = [];
+            setDisplayState("no_data");
+            setUserState("no_data");
+        }
+    }, [connected]);
 
 
     // 5) Hook into your existing dataProcessor worker
@@ -499,6 +499,7 @@ if (timeSinceConnection < STATE_UPDATE_INTERVAL) {
                             <h3 className="text-base md:text-lg font-semibold mb-2 text-[#C29963]">Meditation</h3>
                             <div className="flex-1 min-h-0 overflow-hidden flex flex-col">
                                 <MeditationSession
+                                   connected={connected}
                                     onStartSession={() => {
                                         sessionDataRef.current = [];
                                         isMeditatingRef.current = true;
@@ -522,6 +523,7 @@ if (timeSinceConnection < STATE_UPDATE_INTERVAL) {
                                                     <div className="bg-white dark:bg-zinc-900 rounded-lg shadow-xl p-4 w-full max-w-screen-md max-h-[90vh] overflow-y-auto flex flex-col md:flex-row justify-center">
                                                         <div className="flex-1">
                                                             <MeditationWaveform
+                                                            
                                                                 data={sessionDataRef.current}
                                                                 sessionDuration={
                                                                     sessionDataRef.current.length > 1
@@ -825,14 +827,17 @@ if (timeSinceConnection < STATE_UPDATE_INTERVAL) {
                         {/* ECG Row 1: Heart Image - Fixed height */}
                         <div className={`rounded-xl shadow-md py-2 px-3 border ${cardBg} flex items-center justify-center transition-colors duration-300 flex-none`} style={{ height: "80px" }}>
                             <div className="flex items-center">
-                                <div className={`p-2 rounded-full ${heartIconBoxBg} transition-all duration-300 ${isBeating ? 'scale-110' : 'scale-100'} mr-3`}>
-                                    <Heart
-                                        className={`${secondaryAccent} ${isBeating ? 'scale-110' : 'scale-100'} transition-all duration-200`}
-                                        strokeWidth={1.5}
-                                        size={32}
-                                        fill={isBeating ? "currentColor" : "none"}
-                                    />
-                                </div>
+                                {connected && (
+                                    <div className={`p-2 rounded-full ${heartIconBoxBg} transition-all duration-300 ${isBeating ? 'scale-110' : 'scale-100'} mr-3`}>
+                                        <Heart
+                                            className={`${secondaryAccent} ${isBeating ? 'scale-110' : 'scale-100'} transition-all duration-200`}
+                                            strokeWidth={1.5}
+                                            size={32}
+                                            fill={isBeating ? "currentColor" : "none"}
+                                        />
+                                    </div>
+                                )}
+
                                 <div>
                                     <h2 className={`text-lg font-semibold ${textPrimary}`}>Heart Activity</h2>
                                     <p className={`text-xs ${textSecondary}`}>Electrocardiogram (ECG)</p>

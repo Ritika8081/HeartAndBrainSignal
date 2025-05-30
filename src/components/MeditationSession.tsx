@@ -1,9 +1,13 @@
 // components/MeditationSession.tsx
 "use client";
+
 import { useState, useRef, useEffect } from 'react';
+import { useBleStream } from '../components/Bledata';
 
 export const MeditationSession = ({
+
     onStartSession,
+    connected,
     onEndSession,
     sessionData,
     darkMode,
@@ -13,6 +17,7 @@ export const MeditationSession = ({
     onEndSession: () => void;
     sessionData: { timestamp: number; alpha: number; beta: number; theta: number; delta: number; symmetry: number }[];
     darkMode: boolean;
+    connected: boolean;
     renderSessionResults?: (results: {
         dominantBands: Record<string, number>;
         mostFrequent: string;
@@ -55,9 +60,9 @@ export const MeditationSession = ({
         convert: (ticks: number) => string;
         avgSymmetry: string;
         formattedDuration: string;
-        statePercentages: Record<string, string>; // ✅ Added
-        goodMeditationPct: string;               // ✅ Added
-        weightedEEGScore: number;                // ✅ Added
+        statePercentages: Record<string, string>;
+        goodMeditationPct: string;
+        weightedEEGScore: number;
     } | null>(null);
     const sessionStartTime = useRef<number | null>(null);
     const selectedGoalRef = useRef<string>('meditation'); // Default goal set to 'meditation'
@@ -211,35 +216,43 @@ export const MeditationSession = ({
                     !sessionResults ? (
                         // Start Session UI
                         <div className="space-y-2 animate-in fade-in duration-300 h-full flex flex-col">
-                           
+
 
                             <div className="flex-1 flex flex-col justify-center space-y-1">
                                 <label className={`text-xs font-medium ${textSecondary}`}>Duration</label>
 
-                                {/* Preset Buttons */}
                                 <div className="flex flex-row flex-wrap gap-1">
                                     {[3, 5, 10, 15].map((val) => (
                                         <button
+                                            disabled={!connected}
                                             key={val}
                                             onClick={() => setDuration(val)}
-                                            className={`px-2 py-1 rounded-lg border font-medium text-sm transition-all duration-200 
-                    ${duration === val
-                                                    ? "bg-[#D9777B] text-white border-transparent"
-                                                    : `bg-white dark:bg-zinc-800 text-gray-700 dark:text-gray-200 border-gray-300 dark:border-zinc-600`
-                                                }`}
+                                            className={`px-2 py-1 rounded-lg border font-medium text-sm transition-all duration-200
+                ${duration === val
+                                                    ? `bg-[#D9777B] text-white border-transparent`
+                                                    : `bg-white dark:bg-zinc-800 text-gray-700 dark:text-gray-200 border-gray-300 dark:border-zinc-600`}
+                ${!connected ? "opacity-50 cursor-not-allowed" : ""}
+            `}
                                         >
                                             {val} min
                                         </button>
                                     ))}
                                 </div>
 
+
                                 {/* Begin Button */}
                                 <button
+                                    disabled={!connected}
                                     onClick={startMeditation}
-                                    className={`mt-2 bg-[#D9777B] px-4 py-2 text-white font-medium rounded-lg transition-all duration-300 transform hover:scale-[1.02] active:scale-[0.98] flex items-center justify-center gap-2 text-sm whitespace-nowrap`}
+                                    className={`mt-2 px-4 py-2 text-white font-medium rounded-lg transition-all duration-300 transform text-sm whitespace-nowrap flex items-center justify-center gap-2
+        ${connected
+                                            ? 'bg-[#D9777B] hover:scale-[1.02] active:scale-[0.98]'
+                                            : 'bg-[#D9777B]/40 cursor-not-allowed opacity-60'}
+    `}
                                 >
                                     Begin
                                 </button>
+
                             </div>
 
                         </div>
@@ -279,22 +292,22 @@ export const MeditationSession = ({
                     )
                 ) : (
                     <div className="h-full flex flex-col justify-center items-center text-center animate-in fade-in duration-300">
-                        <div className="relative  max-w-[120px] aspect-square mb-2">
+                        <div className="relative max-w-[90px] aspect-square mb-2">
                             <div
-                                className={`w-16 h-16 rounded-full border-2 ${darkMode ? 'border-blue-400/30' : 'border-blue-500/30'} relative overflow-hidden`}
+                                className={`w-12 h-12 rounded-full border-2 ${darkMode ? 'border-blue-400/30' : 'border-blue-500/30'} relative overflow-hidden`}
                             >
                                 <div
                                     className={`absolute inset-0 rounded-full ${darkMode ? 'bg-blue-400/20' : 'bg-blue-500/20'} animate-pulse`}
                                     style={{ animation: 'breathe 4s ease-in-out infinite' }}
                                 />
                                 <div className="absolute inset-0 flex items-center justify-center">
-                                    <div className={`text-[10px] font-light ${accent}`}>
+                                    <div className={`text-[8px] font-light ${accent}`}>
                                         {Math.floor(timeLeft / 60)}:{(timeLeft % 60).toString().padStart(2, '0')}
                                     </div>
                                 </div>
                             </div>
 
-                            <svg className="absolute inset-0 w-16 h-16 transform -rotate-90" viewBox="0 0 100 100">
+                            <svg className="absolute inset-0 w-12 h-12 transform -rotate-90" viewBox="0 0 100 100">
                                 <circle
                                     cx="50"
                                     cy="50"
@@ -315,7 +328,6 @@ export const MeditationSession = ({
                                     className="transition-all duration-1000 ease-linear"
                                 />
                             </svg>
-
                         </div>
 
                         <div className="space-y-1 mb-2">
@@ -325,9 +337,9 @@ export const MeditationSession = ({
 
                         <button
                             onClick={stopMeditation}
-                            className={`px-4 py-1.5 bg-gradient-to-r from-red-600 to-red-700 hover:from-red-700 hover:to-red-800 text-white font-medium rounded-lg transition-all duration-300 transform hover:scale-105 active:scale-95 flex items-center justify-center gap-2 text-xs`}
+                            className={`px-4 py-1.5  bg-gradient-to-r from-red-600 to-red-700 hover:from-red-700 hover:to-red-800 text-white font-medium rounded-lg transition-all duration-300 transform hover:scale-105 active:scale-95 flex items-center justify-center gap-2 text-xs`}
                         >
-                            <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <svg className="w-3 h-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
                                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 10h6v4H9z" />
                             </svg>
