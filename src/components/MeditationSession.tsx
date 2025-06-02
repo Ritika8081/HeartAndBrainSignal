@@ -36,7 +36,7 @@ export const MeditationSession = ({
     }) => React.ReactNode;
 }) => {
     const [isMeditating, setIsMeditating] = useState(false);
-    const [duration, setDuration] = useState(5);
+    const [duration, setDuration] = useState(3);
     const [timeLeft, setTimeLeft] = useState(0);
     const [sessionResults, setSessionResults] = useState<{
         duration: number;
@@ -213,57 +213,54 @@ export const MeditationSession = ({
                                 </label>
 
                                 {/* Duration Buttons - Responsive grid */}
-                                <div className="grid grid-cols-2 sm:grid-cols-4 gap-1.5 sm:gap-2 md:gap-3">
-                                    {[3, 5, 10, 15].map((val) => (
-                                        <button
-                                            key={val}
-                                            onClick={() => setDuration(val)}
-                                            disabled={!connected}
-                                            className={`
-                                                relative overflow-hidden group
-                                                px-1 py-2 sm:px-2 sm:py-3 md:py-4
-                                                rounded-lg border font-bold transition-all duration-300
-                                                text-xs sm:text-sm md:text-base
-                                                
-                                                ${duration === val
-                                                    ? `bg-[#D9777B] text-white border-transparent`
-                                                    : `bg-white dark:bg-zinc-800 text-gray-700 dark:text-gray-200 border-gray-300 dark:border-zinc-600`
-                                                }
-                                                ${!connected ? "opacity-40 cursor-not-allowed" : "hover:scale-105"}
-                                            `}
-                                        >
-                                            <div className="relative flex flex-col items-center space-y-0.5 sm:space-y-1">
-                                                <span className="text-xs sm:text-sm md:text-base font-bold">{val}</span>
-                                                <span className="text-[10px] sm:text-xs opacity-80 font-medium">min</span>
-                                            </div>
-                                        </button>
-                                    ))}
-                                </div>
+
+                               <div className="flex flex-wrap sm:flex-nowrap rounded-md overflow-hidden border border-[0.1px] dark:border-zinc-400 w-full max-w-sm text-[10px] sm:text-xs">
+                        {[3, 5, 10, 15].map((val, idx) => (
+                            <div
+                                key={val}
+                                className={`min-w-[50%] sm:min-w-0 flex-1 border-l border-l-[0.5px] dark:border-zinc-600 ${idx === 0 ? 'border-l-0' : ''}`}
+                            >
+                                <button
+                                    onClick={() => setDuration(val)}
+                                    disabled={!connected}
+                                    className={`w-full h-full px-2 py-1 sm:px-2.5 sm:py-1.5 transition-all duration-300 font-semibold
+                                        ${duration === val
+                                            ? 'bg-[#D9777B] text-white'
+                                            : 'bg-white dark:bg-zinc-800 text-gray-700 dark:text-gray-200'}
+                                        ${!connected ? 'opacity-40 cursor-not-allowed' : 'hover:scale-[1.03]'}
+                                    `}
+                                >
+                                    <div className="flex flex-col items-center leading-tight space-y-0.5">
+                                        <span className="text-[11px] sm:text-xs">{val}</span>
+                                        <span className="text-[9px] sm:text-[10px] opacity-70">min</span>
+                                    </div>
+                                </button>
+                            </div>
+                        ))}
+                   
+                               </div>
+
+
                             </div>
                         </div>
 
-                        {/* Begin Button - Bottom section with proper spacing */}
-                        <div className="flex justify-center pt-2 pb-1 sm:pb-2 px-2">
+                        <div className="flex justify-center pt-2 pb-4 sm:pb-2 px-2" style={{ paddingBottom: '0.75rem' }}>
                             <button
                                 disabled={!connected}
                                 onClick={startMeditation}
-                                className={`
-                                    group relative overflow-hidden
-                                    px-4 py-2 sm:px-6 sm:py-3 md:px-8 md:py-4
-                                    text-white font-bold rounded-lg transition-all duration-300 
-                                    text-sm sm:text-base md:text-lg
-                                    flex items-center justify-center space-x-2
-                                    shadow-lg focus:ring-4 w-full max-w-xs
-                                    ${connected
-                                        ? 'bg-gradient-to-r from-[#D9777B] via-[#E68A8F] to-[#F0A0A5] hover:scale-105 focus:ring-[#D9777B]/30'
-                                        : 'bg-gradient-to-r from-[#D9777B]/40 to-[#E68A8F]/40 cursor-not-allowed opacity-50'
+                                className={`  min-w-[120px] max-w-[160px] w-auto px-4 py-2 sm:px-5 sm:py-2.5 md:px-6 md:py-3 text-xs sm:text-sm md:text-base 
+                               rounded-xl transition-all duration-300 flex items-center justify-center gap-2 whitespace-nowrap shadow-sm hover:shadow-md transform hover:scale-105
+                           ${connected
+                                        ? 'bg-[#E4967E] hover:bg-[#d7856e] text-white border-2 border-[#E4967E] hover:border-[#d7856e]'
+                                        : 'bg-[#E4967E] opacity-50 text-white border-2 border-[#E4967E] cursor-not-allowed'
                                     }
-                                `}
+                                 `}
                             >
-                                <div className="absolute inset-0 bg-gradient-to-r from-white/20 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
+                                <div className="absolute inset-0 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
                                 <span className="relative z-10 truncate">Begin Session</span>
                             </button>
                         </div>
+
                     </div>
                 ) : (
                     // Session Results UI - Responsive layout
@@ -273,7 +270,6 @@ export const MeditationSession = ({
                             <h3 className={`text-base sm:text-lg md:text-xl font-bold ${textPrimary}`}>
                                 Session Complete
                             </h3>
-                            <div className="w-16 sm:w-24 md:w-32 h-0.5 sm:h-1 bg-gradient-to-r from-[#548687] to-[#6B9FA0] mx-auto rounded-full" />
                         </div>
 
                         {/* Results Content - Takes remaining space with scroll */}
@@ -319,13 +315,11 @@ export const MeditationSession = ({
                     {/* Responsive Timer Circle */}
 
                     <div className="relative w-full h-full mx-auto">
-                        {/* Breathing rings with responsive scaling */}
-
 
                         {/* Responsive Timer Display */}
                         <div className="absolute inset-0 flex items-center justify-center">
                             <div className={`text-center ${accent}`}>
-                                <div className="text-xl sm:text-2xl md:text-3xl lg:text-4xl font-bold font-mono leading-tight">
+                                <div className="text-sm sm:text-md md:text-lg lg:text-xl font-bold font-mono leading-tight">
                                     {Math.floor(timeLeft / 60)}:{(timeLeft % 60).toString().padStart(2, '0')}
                                 </div>
                                 <div className="text-xs sm:text-sm md:text-base opacity-70 mt-1">
@@ -339,7 +333,7 @@ export const MeditationSession = ({
                                 cx="50"
                                 cy="50"
                                 r="48"
-                                stroke={darkMode ? "#374151" : "#e5e7eb"}
+                                stroke={darkMode ? "#548687" : "#548687"}
                                 strokeWidth="1"
                                 fill="none"
                             />
@@ -347,7 +341,7 @@ export const MeditationSession = ({
                                 cx="50"
                                 cy="50"
                                 r="46"
-                                stroke={darkMode ? "#1f2937" : "#f3f4f6"}
+                                stroke={darkMode ? "#548687" : "#548687"}
                                 strokeWidth="2"
                                 fill="none"
                             />
@@ -376,15 +370,9 @@ export const MeditationSession = ({
                     {/* Responsive End Session Button */}
                     <button
                         onClick={stopMeditation}
-                        className={`
-                            group relative overflow-hidden
-                            px-4 py-2 sm:px-5 sm:py-2.5 md:px-6 md:py-3
-                            bg-gradient-to-r from-red-600 via-red-700 to-red-800 
-                            hover:scale-105
-                            text-white font-bold rounded-lg transition-all duration-300 
-                            flex items-center justify-center space-x-2 shadow-lg 
-                            text-sm sm:text-base
-                            w-full max-w-xs
+                        className={`group relative overflow-hidden px-4 py-2 sm:px-5 sm:py-2.5 md:px-6 md:py-3 bg-[#548687] hover:scale-105
+                            text-white font-bold rounded-lg transition-all duration-300 flex items-center justify-center space-x-2 shadow-lg 
+                            text-sm sm:text-base w-full max-w-xs
                         `}
                     >
                         <div className="absolute inset-0 bg-gradient-to-r from-white/10 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300" />

@@ -55,7 +55,6 @@ const HRVPlotCanvas = forwardRef<HRVPlotCanvasHandle, Props>(
             const canvas = canvasRef.current!;
             const resize = () => {
                 const { width, height } = canvas.getBoundingClientRect();
-                console.log('Resizing to:', width, height); // Debug log
 
                 const dpr = window.devicePixelRatio || 1;
                 canvas.width = width * dpr;

@@ -62,30 +62,12 @@ const QuoteCard = ({ cardBg = 'bg-white', refreshInterval = 30000, darkMode = fa
       return "text-xs";
     }
   };
-
+ 
   return (
     <div className={`rounded-xl p-2 sm:p-3 md:p-4  ${cardBg} flex flex-col transition-colors duration-300 h-full min-h-[120px] sm:min-h-[150px] overflow-hidden group hover:shadow-lg`}>
       {/* Header with category badge and refresh button */}
 
-      <div className="flex justify-between items-center mb-2 sm:mb-3 gap-2 flex-shrink-0 w-full overflow-hidden px-20">
-        <span className={`px-3 py-1 rounded-full text-xs font-medium capitalize ${currentQuote.category === 'fitness' ? 'bg-orange-100 text-orange-800 ' :
-            currentQuote.category === 'meditation' ? 'bg-purple-100 text-purple-800 ' :
-              currentQuote.category === 'lifestyle' ? 'bg-green-100 text-green-800 ' :
-                'bg-blue-100 text-blue-800'
-          }`}>
-          {currentQuote.category}
-        </span>
-
-        <button
-          onClick={refreshQuote}
-          className={`opacity-70 group-hover:opacity-100 transition-opacity duration-200 p-1 rounded-full flex-shrink-0 ${darkMode ? 'hover:bg-gray-700' : 'hover:bg-gray-100'}`}
-          title="Get new quote"
-        >
-          <svg className={`w-4 h-4  ${darkMode ? 'text-gray-400' : 'text-gray-600'}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
-          </svg>
-        </button>
-      </div>
+      <div className={`flex justify-center items-center mb-2 sm:mb-3 mx-4 mt-8 text-sm sm:text-base md:text-lg lg:text-xl font-semibold  ${textPrimary}`}>Good saying</div>
 
       {/* Quote content */}
       <div className="flex-1 flex flex-col justify-center overflow-hidden w-full">

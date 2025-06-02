@@ -160,21 +160,16 @@ const MeditationAnalysis: React.FC<Props> = ({
 
     ctx.clearRect(0, 0, width, height);
 
-    // Background gradient
-    const bgGradient = ctx.createLinearGradient(0, 0, 0, height);
-    bgGradient.addColorStop(0, 'rgba(15, 23, 42, 0.9)');
-    bgGradient.addColorStop(1, 'rgba(15, 23, 42, 0.4)');
-    ctx.fillStyle = bgGradient;
+    // Background solid color
+    ctx.fillStyle = 'rgba(15, 23, 42, 0.7)';
     ctx.fillRect(0, 0, width, height);
 
-    const stateColors = {
-  relaxed: ['#06b6d4', '#0891b2', '#0e7490'],   // bright blues, unchanged
-  focused: ['#f59e0b', '#d97706', '#b45309'],   // bright yellows/oranges, unchanged
-  deep: ['#8b5cf6', '#a855f7', '#6366f1'],      // purples, unchanged
- drowsy: ['#8b6b47', '#c19a65', '#9a8f8f']  // includes a soft greyish color
-
+   const stateColors = {
+  relaxed: '#34d399',     // mint green - Apple Watch wellness green
+  focused: '#f97316',     // vibrant orange - activity/energy indicator
+  deep: '#6366f1',        // electric blue - tech sophistication
+  drowsy: '#9ca3af'       // cool gray - subtle, non-intrusive
 };
-
 
     metrics.phases.forEach((phase, i) => {
       const x = padding + i * barWidth;
@@ -188,13 +183,7 @@ const MeditationAnalysis: React.FC<Props> = ({
         const stateHeight = phase.stateHeights[state] * maxBarHeight * 0.8; // Scale down for better visibility
 
         if (stateHeight > 2) { // Only draw if significant
-          const gradient = ctx.createLinearGradient(x, currentY - stateHeight, x, currentY);
-          const colors = stateColors[state];
-          gradient.addColorStop(0, colors[0]);
-          gradient.addColorStop(0.5, colors[1]);
-          gradient.addColorStop(1, colors[2]);
-
-          ctx.fillStyle = gradient;
+          ctx.fillStyle = stateColors[state];
           ctx.beginPath();
           ctx.roundRect(x + 2, currentY - stateHeight, barWidth - 4, stateHeight, 2);
           ctx.fill();
@@ -240,18 +229,19 @@ const MeditationAnalysis: React.FC<Props> = ({
 
 
   const getPhaseColor = (phase: string) => {
-    switch (phase.toLowerCase()) {
-     case 'meditation': return 'from-purple-500 to-indigo-600';
-      case 'relaxed': return 'from-cyan-500 to-blue-600';
-      case 'focused': return 'from-amber-500 to-orange-600';
-    case 'drowsy': return 'from-[#8b6b47] to-[#a0785a]';
-      default: return 'from-slate-500 to-slate-600';
-    }
-  };
+  switch (phase.toLowerCase()) {
+    case 'relaxed': return 'bg-emerald-400';  // closest to mint green (#34d399)
+    case 'focused': return 'bg-orange-500';   // close to vibrant orange (#f97316)
+    case 'meditation': return 'bg-indigo-500';// close to electric blue (#6366f1)
+    case 'drowsy': return 'bg-gray-400';      // close to cool gray (#9ca3af)
+    default: return 'bg-slate-500';
+  }
+};
+
   
 
   return (
-    <div className={`w-full max-w-xl mx-auto bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 rounded-sm overflow-hidden shadow-2xl ${className}`}>
+    <div className={`w-full  h-full  bg-slate-800 rounded-sm overflow-hidden shadow-2xl ${className}`}>
       <div className="p-6">
         {/* Phases Canvas */}
         <div className="mb-4">
@@ -263,20 +253,21 @@ const MeditationAnalysis: React.FC<Props> = ({
         </div>
 
         {/* Meditation Breakdown */}
-        <div className="grid grid-cols-4 gap-2 mb-6">
-          {Object.entries(metrics.statePercentages).map(([state, pct]) => (
-            <div key={state} className="text-center">
-              <div className={`w-3 h-3 rounded-full mx-auto mb-1 bg-gradient-to-r ${getPhaseColor(state)}`}></div>
-              <div className="text-xs text-slate-300">{state}</div>
+        <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 mb-6 h-20">
 
-            </div>
+          {Object.entries(metrics.statePercentages).map(([state, pct]) => (
+           <div key={state} className="flex items-center gap-2">
+  <div className={`w-3 h-3 rounded-full ${getPhaseColor(state)}`}></div>
+  <div className="text-xs text-slate-300">{state}</div>
+</div>
+
           ))}
         </div>
 
         {/* Session Insights */}
-        <div className="mt-6 p-4 bg-gradient-to-r from-emerald-900/20 to-teal-900/20 rounded-xl border border-emerald-800/30">
+        <div className="mt-6 p-4 bg-emerald-900/20 rounded-xl border border-emerald-800/30">
           <div className="flex items-center space-x-2 mb-2">
-            <Award className="w-4 h-4 text-emerald-400" />
+            <Award className="w-4 h-10 text-emerald-400" />
             <span className="text-sm font-medium text-emerald-300">Session Insights</span>
           </div>
           <p className="text-xs text-slate-300 leading-relaxed">
