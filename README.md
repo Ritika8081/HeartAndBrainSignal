@@ -100,8 +100,6 @@ Handled in **Web Workers** to ensure real-time performance:
 
 ## 💻 Code Structure
 
-*(Add your code structure details here)*
-
 ---
 
 ## 🎨 UI/UX Highlights
