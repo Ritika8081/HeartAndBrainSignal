@@ -91,9 +91,6 @@ const HRVPlotCanvas = forwardRef<HRVPlotCanvasHandle, Props>(
                 line.setY(i, 0); // Changed from NaN to 0
             }
 
-            // // Set Y scale appropriate for HRV (0-200ms by default)
-            // plot.gScaleY = 0.000; // This will make 200 appear at the top of the plot
-            // plot.gOffsetY = -1; // Adjust as needed
 
             plot.addLine(line);
             plotRef.current = plot;

@@ -105,16 +105,9 @@ export function useBleStream(datastreamCallback?: (data: number[]) => void) {
 
   // Disconnect and clean up everything
   const disconnect = async () => {
-    if (streaming) {
+    if (streaming && deviceRef.current?.gatt?.connected) {
       await stop();
-    }
-
-    try {
-      if (deviceRef.current?.gatt?.connected) {
-        deviceRef.current.gatt.disconnect();
-      }
-    } catch (err) {
-      console.warn('BLE disconnect failed:', err);
+      deviceRef.current.gatt.disconnect();
     }
 
     // State update triggers clearCanvas via effect
