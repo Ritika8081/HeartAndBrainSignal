@@ -26,7 +26,6 @@ function processRawData(rawData: {
   };
 
   
-console.log("processed",processed)
   return {
     ...processed,
    

@@ -16,13 +16,13 @@ import WebglPlotCanvas from '../components/WebglPlotCanvas';
 import Contributors from './Contributors';
 import { WebglPlotCanvasHandle } from "../components/WebglPlotCanvas";
 import HRVPlotCanvas, { HRVPlotCanvasHandle } from '@/components/Hrvwebglplot'
-import BrainSplitVisualizer from '@/components/BrainSplit';
 import { StateIndicator, State } from "@/components/StateIndicator";
 import MeditationWaveform from "../components/MeditationWaveform"; // Add this import
 import { predictState } from "@/lib/stateClassifier";
 import { useRouter } from 'next/navigation';
 import { MeditationSession } from '../components/MeditationSession';
 import QuoteCard from './QuoteCard';
+import Link from "next/link";
 
 const CHANNEL_COLORS: Record<string, string> = {
     ch0: "#C29963", // EEG channel 0
@@ -48,7 +48,29 @@ export default function SignalVisualizer() {
     const stateWindowRef = useRef<{ state: State; timestamp: number }[]>([]);
     const lastStateUpdateRef = useRef<number>(0);
     const connectionStartRef = useRef<number | null>(null);
-
+    const [sessionResults, setSessionResults] = useState<{
+        duration: number;
+        averages: {
+            alpha: number;
+            beta: number;
+            theta: number;
+            delta: number;
+            symmetry: number;
+        };
+        mentalState: string;
+        stateDescription: string;
+        focusScore: string;
+        symmetry: string;
+        data: typeof sessionDataRef.current;
+        dominantBands: Record<string, number>;
+        mostFrequent: string;
+        convert: (ticks: number) => string;
+        avgSymmetry: string;
+        formattedDuration: string;
+        statePercentages: Record<string, string>;
+        goodMeditationPct: string;
+        weightedEEGScore: number;
+    } | null>(null);
     // 1) Create refs for each display element
     const currentRef = useRef<HTMLDivElement>(null);
     const highRef = useRef<HTMLDivElement>(null);
@@ -425,11 +447,12 @@ export default function SignalVisualizer() {
     const secondaryAccent = darkMode ? "text-rose-300" : "text-rose-500";
     const textPrimary = darkMode ? "text-stone-300" : "text-stone-800";
     const textSecondary = darkMode ? "text-stone-400" : "text-stone-500";
-    const gridLines = darkMode ? "#3f3f46" : "#e5e7eb";
+    const gridLines = darkMode ? "rgb(255, 255, 255)" : "rgb(0, 0, 0)";
     const axisColor = darkMode ? "#71717a" : "#78716c";
     const iconBoxBg = darkMode ? "bg-amber-900/20" : "bg-amber-50";
     const heartIconBoxBg = darkMode ? "bg-rose-900/20" : "bg-rose-50";
     const labelText = darkMode ? "text-zinc-400" : "text-stone-500"; // Added for labels
+    const buttonbg = darkMode ? "bg-amber-300" : "bg-amber-600";
 
     return (
         <div className={`flex flex-col h-screen w-full overflow-hidden text-sm sm:text-base md:text-lg lg:text-xl ${bgGradient} transition-colors duration-300`}>
@@ -449,16 +472,16 @@ export default function SignalVisualizer() {
                     <div className="flex items-center" style={{ gap: '1.25rem' }}>
                         <button
                             onClick={() => setDarkMode(!darkMode)}
-                            className={`p-1.5 sm:p-2 md:p-2.5 rounded-full transition-all duration-300 
-                                ${darkMode ? 'bg-zinc-700 hover:bg-zinc-600 text-zinc-200' : 'bg-stone-200 hover:bg-stone-300 text-stone-700'} 
-                                shadow-sm hover:shadow-md transform hover:scale-105 flex items-center justify-center`}
+                            className={`p-1.5 sm:p-2 md:p-2.5 rounded-xl transition-all duration-300 
+                                ${darkMode ? ' text-zinc-200' : ' text-stone-700'} 
+                                shadow-sm hover:shadow-md transform hover:scale-105 flex items-center justify-center cursor-pointer`}
                         >
                             {darkMode ?
                                 <Sun className="w-3 h-3 sm:w-4 sm:h-4 md:w-5 md:h-5" strokeWidth={2} /> :
                                 <Moon className="w-3 h-3 sm:w-4 sm:h-4 md:w-5 md:h-5" strokeWidth={2} />
                             }
                         </button>
-                        <div className="flex items-center">
+                        <div className="flex items-center cursor-pointer">
                             <Contributors darkMode={darkMode} />
                         </div>
                     </div>
@@ -467,14 +490,14 @@ export default function SignalVisualizer() {
 
             {/* Main content - Flexible height */}
             <main className="flex-1 w-full overflow-hidden flex flex-col ">
-                <div className="grid grid-cols-1 lg:grid-cols-5 gap-1 sm:gap-2 lg:gap-2 h-full min-h-0 overflow-hidden w-full ">
+                <div className="grid grid-cols-3 lg:grid-cols-5 gap-2 h-full min-h-0 overflow-hidden w-full ">
                     {/* First Column - Device Info */}
-                    <div className="lg:col-span-1 flex flex-col gap-2 sm:gap-3 md:gap-4 h-full min-h-0 overflow-hidden p-2 sm:p-3 md:p-4">
+                    <div className="lg:col-span-1 flex flex-col gap-2 h-full min-h-0 overflow-hidden p-2 sm:p-3 md:p-4">
 
                         {/* First card - device connection */}
                         <div className={`rounded-xl shadow-md p-3 sm:p-4 md:p-6 border ${cardBg} flex flex-col items-center transition-colors duration-300 h-1/3 min-h-0 overflow-hidden`}>
                             <div className="flex-1 flex flex-col items-center justify-center w-full min-h-0">
-                                <div className={`p-2 sm:p-3 md:p-4 rounded-full ${iconBoxBg} transition-colors duration-300`}>
+                                <div className={`p-2 sm:p-3 md:p-4 rounded-xl ${iconBoxBg} transition-colors duration-300`}>
                                     <Box className={`${primaryAccent} w-4 h-4 sm:w-5 sm:h-5 md:w-6 md:h-6 lg:w-7 lg:h-7`} strokeWidth={1.5} />
                                 </div>
                             </div>
@@ -483,15 +506,15 @@ export default function SignalVisualizer() {
                                 <button
                                     onClick={connected ? disconnect : connect}
                                     className={`min-w-[120px] max-w-[160px] w-auto px-4 py-2 sm:px-5 sm:py-2.5 md:px-6 md:py-3 text-xs sm:text-sm md:text-base
-                             rounded-xl font-semibold transition-all duration-300 border-2 flex items-center justify-center gap-2 
-                             whitespace-nowrap shadow-sm hover:shadow-md transform hover:scale-105
-                             ${connected
-                                            ? "bg-[#E4967E] hover:bg-[#d7856e] text-white border-[#E4967E] hover:border-[#d7856e]"
-                                            : "bg-[#E4967E] hover:bg-[#d7856e] text-white border-[#E4967E] hover:border-[#d7856e]"
+                             rounded-xl font-semibold transition-all duration-300  flex items-center justify-center gap-2 
+                             whitespace-nowrap shadow-sm hover:shadow-md transform hover:scale-105 cursor-pointer
+                             ${darkMode
+                                            ? "bg-amber-300  text-zinc-800/90  "
+                                            : "bg-amber-600  text-zinc-800/90  "
                                         }
                              `}
                                 >
-                                    <span className="font-medium text-white">
+                                    <span className="font-medium ">
                                         {connected ? "Disconnect" : "Connect"}
                                     </span>
                                 </button>
@@ -520,36 +543,47 @@ export default function SignalVisualizer() {
                                     }}
                                     sessionData={sessionDataRef.current}
                                     darkMode={darkMode}
+                                    sessionResults={sessionResults}
+                                    setSessionResults={setSessionResults}
+                                    setShowResults={setShowResults}
                                     renderSessionResults={(results) => (
                                         <>
-                                            <button
-                                                onClick={() => setShowResults(true)}
-                                                className="mt-auto py-1 px-3 text-xs font-medium rounded bg-[#9A7197] text-white hover:bg-[#875981] transition-all w-fit self-end"
-                                            >
-                                                View Last Results
-                                            </button>
+                                            <div className="flex justify-center items-center h-full">
+                                                <button
+                                                    onClick={() => setSessionResults(null)}
+                                                    className={`min-w-[120px] max-w-[160px] w-auto px-10 py-2 sm:px-5 sm:py-2.5 md:px-6 md:py-3 text-xs sm:text-sm md:text-base 
+                            rounded-xl transition-all duration-300 flex items-center justify-center gap-2 whitespace-nowrap shadow-sm hover:shadow-md transform hover:scale-105
+    text-black cursor-pointer
+                                 ${buttonbg}
+                       `}
+                                                    style={{ padding: "0.3rem" }}
+                                                >
+
+                                                    Start New Session
+                                                </button>
+                                            </div>
 
                                             {showResults && (
                                                 <div className="fixed inset-0 bg-black/40 backdrop-blur-sm flex items-center justify-center z-50">
-                                                    <div className="w-full max-w-4xl mx-4 sm:mx-6 my-6 bg-white dark:bg-zinc-900 rounded-lg shadow-xl max-h-[90vh] overflow-y-auto flex flex-col">
+                                                    <div className="w-full max-w-4xl mx-4 sm:mx-6 my-6 bg-white dark:bg-black rounded-xl shadow-xl max-h-[90vh] overflow-y-auto flex flex-col">
                                                         {/* Header with close button */}
-                                                        <div className="relative flex items-center justify-center  top-0 bg-white dark:bg-zinc-900 z-10 mb-4 h-10 sm:h-14">
+                                                        <div className="relative flex items-center justify-center  top-0 z-10 mb-4 h-10 sm:h-14">
                                                             <h4 className="absolute left-1/2 -translate-x-1/2 text-sm sm:text-base md:text-lg lg:text-xl font-bold text-[#548687]">
                                                                 Session Complete: Meditation Insights
                                                             </h4>
                                                             <button
                                                                 onClick={() => setShowResults(false)}
-                                                                className="absolute right-2 top-1/2 -translate-y-1/2 text-lg sm:text-xl text-gray-600 dark:text-gray-300 hover:text-red-600 p-2 hover:bg-gray-100 dark:hover:bg-zinc-800 rounded-full transition-colors"
+                                                                className="absolute right-2 top-1/2 -translate-y-1/2 text-lg sm:text-xl text-gray-600 dark:text-gray-300 hover:text-red-600 p-2 hover:bg-gray-100 dark:hover:bg-zinc-800 rounded-xl transition-colors cursor-pointer"
                                                             >
-                                                                ✕
+                                                                Close
                                                             </button>
                                                         </div>
 
 
                                                         {/* Main content area */}
-                                                        <div className="flex flex-col lg:flex-row p-4 sm:p-6 gap-6 flex-1 ">
+                                                        <div className="flex flex-col lg:flex-row p-4 sm:p-6 flex-1">
                                                             {/* Left Panel - Waveform Visualization */}
-                                                            <div className="flex-1 min-w-0">
+                                                            <div className="flex-1 min-w-0" style={{ margin: '10px' }}>
                                                                 <MeditationWaveform
                                                                     data={sessionDataRef.current}
                                                                     sessionDuration={
@@ -566,10 +600,11 @@ export default function SignalVisualizer() {
                                                             </div>
 
                                                             {/* Right Panel - Session Results */}
-                                                            <div className="flex-1 min-w-0  lg:pl-6 ">
-                                                                <div className="flex flex-col gap-4 ">
+                                                            <div className="flex-1 min-w-0  lg:pl-6 " style={{ margin: '10px 10px 10px 0' }}
+                                                            >
+                                                                <div className="flex flex-col gap-2 ">
                                                                     {/* Mental State Indicator */}
-                                                                    <div className="text-center py-3 px-4 sm:py-4 sm:px-6 rounded-xl bg-gradient-to-r from-blue-50 to-indigo-50 dark:from-blue-900/20 dark:to-indigo-900/20 border border-blue-200 dark:border-blue-800">
+                                                                    <div className="text-center py-3 px-4 sm:py-4 sm:px-6 rounded-xl bg-gradient-to-r from-blue-50 to-indigo-50 dark:from-blue-900/20 dark:to-indigo-900/20 border border-blue-200 dark:border-blue-800" style={{ padding: '6px' }}>
                                                                         <div className="text-sm sm:text-base md:text-lg font-bold text-[#548687] mb-2">
                                                                             {results.mostFrequent === 'alpha' ? '🧘 Deep Relaxation' :
                                                                                 results.mostFrequent === 'theta' ? '🛌 Profound Meditation' :
@@ -584,7 +619,7 @@ export default function SignalVisualizer() {
                                                                     {/* Summary Grid */}
                                                                     <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
                                                                         <div className="p-3 rounded-xl bg-indigo-100 dark:bg-indigo-900/20 border border-indigo-300 dark:border-indigo-800 text-center">
-                                                                            <div className="text-xs font-semibold text-indigo-600 dark:text-indigo-400 uppercase mb-2">
+                                                                            <div className="text-xs font-semibold text-indigo-600 dark:text-indigo-400 uppercase mb-2" style={{ padding: '6px' }}>
                                                                                 Dominant State
                                                                             </div>
                                                                             <div className="text-sm font-bold capitalize text-gray-800 dark:text-gray-200">
@@ -593,7 +628,7 @@ export default function SignalVisualizer() {
                                                                         </div>
 
                                                                         <div className="p-3 rounded-xl bg-cyan-100 dark:bg-cyan-900/20 border border-blue-300 dark:border-blue-800 text-center">
-                                                                            <div className="text-xs font-semibold text-blue-600 dark:text-blue-400 uppercase mb-2">
+                                                                            <div className="text-xs font-semibold text-blue-600 dark:text-blue-400 uppercase mb-2" style={{ padding: '6px' }}>
                                                                                 Session Duration
                                                                             </div>
                                                                             <div className="text-sm font-bold text-gray-800 dark:text-gray-200">
@@ -602,7 +637,7 @@ export default function SignalVisualizer() {
                                                                         </div>
 
                                                                         <div className="p-3 rounded-xl bg-emerald-100 dark:bg-emerald-900/20 border border-emerald-300 dark:border-emerald-800 text-center">
-                                                                            <div className="text-xs font-semibold text-emerald-600 dark:text-emerald-400 uppercase mb-2">
+                                                                            <div className="text-xs font-semibold text-emerald-600 dark:text-emerald-400 uppercase mb-2" style={{ padding: '6px' }}>
                                                                                 Brain Symmetry
                                                                             </div>
                                                                             <div className="text-sm font-bold text-gray-800 dark:text-gray-200">
@@ -617,14 +652,15 @@ export default function SignalVisualizer() {
 
                                                                     {/* Brainwave Analysis */}
                                                                     <div className="space-y-4">
-                                                                        <h4 className="text-sm sm:text-base md:text-lg font-bold text-[#548687] border-b border-gray-200 dark:border-zinc-700 pb-2">
+                                                                        <h4 className="text-sm sm:text-base md:text-lg font-bold text-[#548687] dark:border-zinc-700 pb-2">
                                                                             🧘 Brainwave Analysis
                                                                         </h4>
                                                                         <div className="grid grid-cols-2 gap-2">
                                                                             {Object.entries(results.statePercentages).map(([state, pct]) => (
                                                                                 <div
                                                                                     key={state}
-                                                                                    className="flex justify-between items-center  px-3 py-5 sm:px-4 sm:py-3 rounded-lg bg-gray-100 dark:bg-zinc-800 border border-gray-200 dark:border-zinc-700"
+                                                                                    className="flex justify-between items-center  px-3 py-5 sm:px-4 sm:py-3 rounded-xl bg-gray-100 dark:bg-zinc-800 border border-gray-200 dark:border-zinc-700"
+                                                                                    style={{ padding: '6px' }}
                                                                                 >
                                                                                     <span className="text-xs sm:text-sm font-medium text-gray-700 dark:text-gray-300">{state}</span>
                                                                                     <span className="text-sm font-bold text-[#548687]">{pct}%</span>
@@ -634,7 +670,7 @@ export default function SignalVisualizer() {
                                                                     </div>
 
                                                                     {/* Performance Indicator */}
-                                                                    <div className="p-4 text-center rounded-xl bg-emerald-100 dark:bg-emerald-900/20 text-emerald-800 dark:text-emerald-100 border border-emerald-300 dark:border-emerald-800">
+                                                                    <div className="p-4 text-center rounded-xl bg-emerald-100 dark:bg-emerald-900/20 text-emerald-800 dark:text-emerald-100 border border-emerald-300 dark:border-emerald-800" style={{ padding: '6px' }}>
                                                                         <div className="text-sm sm:text-base md:text-lg font-bold mb-2">
                                                                             {Number(results.goodMeditationPct) >= 75
                                                                                 ? `🌟 Excellent Session!`
@@ -652,7 +688,7 @@ export default function SignalVisualizer() {
                                                                     </div>
 
                                                                     {/* Session Insights */}
-                                                                    <div className="p-4 rounded-xl border border-yellow-300 bg-yellow-50 dark:bg-yellow-900/20 dark:border-yellow-700">
+                                                                    <div className="p-4 rounded-xl border border-yellow-300 bg-yellow-50 dark:bg-yellow-900/20 dark:border-yellow-700 " style={{ padding: '10px' }}>
                                                                         <h5 className="text-sm sm:text-base md:text-lg font-bold text-yellow-800 dark:text-yellow-100 mb-3">
                                                                             📊 Session Insights
                                                                         </h5>
@@ -729,13 +765,13 @@ export default function SignalVisualizer() {
                     </div>
 
                     {/* Second Column (40%) - EEG */}
-                    <div className="lg:col-span-2 flex flex-col gap-2 sm:gap-3 md:gap-4 h-full min-h-0 overflow-hidden p-2 sm:p-3 md:p-4">
+                    <div className="lg:col-span-2 flex flex-col gap-2  h-full min-h-0 overflow-hidden p-2 sm:p-3 md:p-4">
 
                         {/* EEG Row 1: Brain Image - Reduced height */}
                         <div className={`rounded-xl shadow-md py-2 sm:py-3 md:py-4 px-3 sm:px-4 md:px-6 border ${cardBg} flex items-center justify-center transition-colors duration-300 flex-none`}
                             style={{ height: "70px" }}>
                             <div className="flex items-center w-full justify-center">
-                                <div className={`p-1 sm:p-2 md:p-3 rounded-full duration-300`} style={{ marginRight: '1rem' }}>
+                                <div className={`p-1 sm:p-2 md:p-3 rounded-xl duration-300`} style={{ marginRight: '1rem' }}>
                                     <Brain className={`${primaryAccent} w-5 h-5 sm:w-6 sm:h-6 md:w-7 md:h-7 lg:w-8 lg:h-8`} />
                                 </div>
                                 <div className="flex flex-col justify-center">
@@ -750,15 +786,15 @@ export default function SignalVisualizer() {
                         </div>
 
                         {/* EEG Row 2: Radar Charts */}
-                        <div className={`rounded-2xl shadow-lg p-2 sm:p-3 md:p-4 border ${cardBg} transition-all duration-300 h-2/5 min-h-0 overflow-hidden backdrop-blur-sm flex flex-col`}>
+                        <div className={`rounded-xl shadow-lg p-2 sm:p-3 md:p-4 border ${cardBg} transition-all duration-300 h-2/5 min-h-0 overflow-hidden backdrop-blur-sm flex flex-col`}>
 
                             {/* Content Area */}
                             <div className="flex-1 min-h-0 overflow-hidden">
-                                <div className="flex flex-row h-full gap-1 sm:gap-2 md:gap-3 p-1 sm:p-2">
+                                <div className="flex flex-row h-full gap-2 p-1 sm:p-2">
 
                                     {/* Left Chart */}
                                     <div className="flex-1 flex flex-col h-full">
-                                        <div className="rounded-lg p-2 sm:p-4 md:p-6 h-full">
+                                        <div className="rounded-xl p-2 sm:p-4 md:p-6 h-full">
                                             <div className="flex-1 min-h-0 overflow-hidden" style={{ height: 'calc(100% - 30px)' }}>
                                                 <ResponsiveContainer width="100%" height="100%">
                                                     <RadarChart
@@ -803,7 +839,7 @@ export default function SignalVisualizer() {
 
                                     {/* Right Chart */}
                                     <div className="flex-1 flex flex-col h-full">
-                                        <div className="rounded-lg p-2 sm:p-4 md:p-6 h-full">
+                                        <div className="rounded-xl p-2 sm:p-4 md:p-6 h-full">
                                             <div className="flex-1 min-h-0 overflow-hidden" style={{ height: 'calc(100% - 30px)' }}>
                                                 <ResponsiveContainer width="100%" height="100%">
                                                     <RadarChart
@@ -850,7 +886,7 @@ export default function SignalVisualizer() {
                         </div>
 
                         {/* EEG Row 3: EEG Charts - Remaining height */}
-                        <div className="flex flex-col gap-3 h-flex-1 flex-1 min-h-0 overflow-hidden">
+                        <div className="flex flex-col gap-2 h-flex-1 flex-1 min-h-0 overflow-hidden">
                             {/* Chart 1 */}
                             <div className={`h-1/2 min-h-0 rounded-xl overflow-hidden p-2 transition-colors duration-300 ${darkMode ? 'bg-zinc-800/90' : 'bg-white'}`}>
                                 <WebglPlotCanvas
@@ -872,7 +908,7 @@ export default function SignalVisualizer() {
                     </div>
 
                     {/* Third Column (40%) - ECG */}
-                    <div className="lg:col-span-2 flex flex-col gap-2 sm:gap-3 md:gap-4 h-full min-h-0 overflow-hidden p-2 sm:p-3 md:p-4">
+                    <div className="lg:col-span-2 flex flex-col gap-2  h-full min-h-0 overflow-hidden p-2 sm:p-3 md:p-4">
 
                         {/* ECG Row 1: Heart Image - Fixed height */}
                         <div className={`rounded-xl shadow-md py-2 sm:py-3 md:py-4 px-3 sm:px-4 md:px-6 border ${cardBg} flex items-center justify-center transition-colors duration-300 flex-none`}
@@ -901,12 +937,12 @@ export default function SignalVisualizer() {
                         </div>
 
                         {/* ECG Row 2: BPM + HRV Info - Clean & Spacious */}
-                        <div className={`${cardBg} rounded-xl shadow-md border transition-colors duration-300 h-2/5 min-h-0 overflow-hidden flex flex-col`} style={{ padding: '0.8rem' }}>
+                        <div className={`${cardBg} rounded-xl shadow-md border transition-colors duration-300 h-2/5 min-h-0 overflow-hidden flex flex-col`} style={{ padding: '0.1rem' }}>
                             {/* ── Top Section: Heart Rate Stats ── */}
-                            <div className="grid grid-cols-5 gap-2 sm:gap-3 md:gap-4 lg:gap-5 xl:gap-6 flex-shrink-0 mb-3 sm:mb-4 md:mb-5" style={{ height: '35%' }}>
+                            <div className="grid grid-cols-5 gap-2  flex-shrink-0 mb-3 " style={{ padding: '2px' }}>
                                 {/* Current BPM - takes 2 columns */}
                                 <div className="col-span-2 flex flex-col justify-center pr-1 sm:pr-2 md:pr-3">
-                                    <div className="flex items-baseline gap-1 sm:gap-2 md:gap-3">
+                                    <div className="flex items-baseline gap-2">
                                         <span
                                             ref={currentRef}
                                             className={`text-lg sm:text-xl md:text-2xl lg:text-3xl xl:text-4xl font-bold  ${secondaryAccent} leading-none`}
@@ -923,7 +959,7 @@ export default function SignalVisualizer() {
                                 <div className="col-span-3 grid grid-cols-3 gap-1 sm:gap-2 md:gap-3">
                                     {/* Low stat */}
                                     <div className="flex flex-col items-center justify-center p-1 sm:p-2">
-                                        <span className={`text-sm sm:text-sm md:text-sm ${labelText} mb-1 sm:mb-2 leading-none`}>
+                                        <span className={`text-sm   ${labelText} mb-1 sm:mb-2 leading-none`}>
                                             LOW
                                         </span>
                                         <div className="flex items-baseline gap-1">
@@ -933,7 +969,7 @@ export default function SignalVisualizer() {
                                             >
                                                 --
                                             </span>
-                                            <span className={`text-xs sm:text-xs md:text-xs ${labelText} mb-1 sm:mb-2 leading-none`}>
+                                            <span className={`text-sm sm:text-sm md:text-lg  ${labelText} mb-1 sm:mb-2 leading-none`}>
                                                 BPM
                                             </span>
                                         </div>
@@ -941,7 +977,7 @@ export default function SignalVisualizer() {
 
                                     {/* Avg stat */}
                                     <div className="flex flex-col items-center justify-center p-1 sm:p-2">
-                                        <span className={`text-sm sm:text-sm md:text-sm ${labelText} mb-1 sm:mb-2 leading-none`}>
+                                        <span className={`text-sm  ${labelText} mb-1 sm:mb-2 leading-none`}>
                                             AVG
                                         </span>
                                         <div className="flex items-baseline gap-1">
@@ -951,7 +987,7 @@ export default function SignalVisualizer() {
                                             >
                                                 --
                                             </span>
-                                            <span className={`text-xs sm:text-xs md:text-xs ${labelText} mb-1 sm:mb-2 leading-none`}>
+                                            <span className={`text-sm sm:text-lg md:text-lg ${labelText} mb-1 sm:mb-2 leading-none`}>
                                                 BPM
                                             </span>
                                         </div>
@@ -959,64 +995,43 @@ export default function SignalVisualizer() {
 
                                     {/* High stat */}
                                     <div className="flex flex-col items-center justify-center p-1 sm:p-2">
-                                        <span className={`text-sm sm:text-sm md:text-sm ${labelText} mb-1 sm:mb-2 leading-none`}>
+                                        <span className={`text-sm s ${labelText} mb-1 sm:mb-2 leading-none`}>
                                             HIGH
                                         </span>
                                         <div className="flex items-baseline gap-1">
                                             <span
                                                 ref={highRef}
-                                                className={`text-xs sm:text-sm md:text-base lg:text-lg font-semibold ${textPrimary} leading-none`}
+                                                className={`text-lg sm:text-sm md:text-base lg:text-lg font-semibold ${textPrimary} leading-none`}
                                             >
                                                 --
                                             </span>
-                                            <span className={`text-xs sm:text-xs md:text-xs ${labelText} mb-1 sm:mb-2 leading-none`}>
+                                            <span className={`text-lg sm:text-xs md:text-lg ${labelText} mb-1 sm:mb-2 leading-none`}>
                                                 BPM
                                             </span>
                                         </div>
                                     </div>
                                 </div>
                             </div>
-
+                            {/* ── HRV Plot Section ── */}
+                            <div className="flex-1 min-h-0 overflow-hidden w-full rounded-xl">
+                                <HRVPlotCanvas
+                                    ref={hrvplotRef}
+                                    numPoints={2000}
+                                    color={darkMode ? '#f59e0b' : '#d97706'}
+                                />
+                            </div>
                             {/* ── Divider Section ── */}
-                            <div className="flex items-center gap-2 flex-shrink-0 mb-3" style={{ height: '15%' }}>
+                            <div className="flex items-center gap-2 flex-shrink-0 " style={{ height: '2%', paddingBottom: "10px" }}>
                                 {/* Divider Line */}
                                 <div className="flex-1 h-px bg-stone-200 dark:bg-zinc-700" />
 
-                                {/* Divider Label - Smaller */}
-                                <span className={`text-xs font-medium ${darkMode ? 'text-white' : 'text-black'} ${labelText} whitespace-nowrap px-2`}>
-                                    HRV
-                                </span>
-
-                                {/* Affective State - Smaller */}
-                                <div className="flex items-center" style={{ transform: 'scale(0.8)' }}>
-                                    <StateIndicator state={displayState} />
-                                </div>
-
-                                {/* Divider Line */}
-                                <div className="flex-1 h-px bg-stone-200 dark:bg-zinc-700" />
                             </div>
 
                             {/* ── HRV Stats Section - Smaller ── */}
-                            <div className="grid grid-cols-4 gap-1 sm:gap-2 flex-shrink-0 mb-3" style={{ height: '20%' }}>
-                                <div className={`flex flex-col items-center ${statCardBg} rounded-lg`} style={{ padding: '0.5rem 0.25rem' }}>
-                                    <span className={`text-xs ${labelText} mb-1`} style={{ fontSize: '10px' }}>
-                                        LATEST
-                                    </span>
-                                    <div className="flex items-baseline gap-1">
-                                        <span
-                                            ref={hrvRef}
-                                            className={`text-sm font-semibold ${secondaryAccent}`}
-                                        >
-                                            --
-                                        </span>
-                                        <span className={`ml-1 ${labelText}`} style={{ fontSize: '10px' }}>
-                                            ms
-                                        </span>
-                                    </div>
-                                </div>
+                            <div className="grid grid-cols-4 gap-1 sm:gap-2 flex-shrink-0 mb-3" style={{ marginBottom: "1px" }}>
 
-                                <div className={`flex flex-col items-center ${statCardBg} rounded-lg`} style={{ padding: '0.5rem 0.25rem' }}>
-                                    <span className={`text-xs ${labelText} mb-1`} style={{ fontSize: '10px' }}>
+                                <div className={`flex flex-col items-center ${statCardBg} rounded-xl`} style={{ padding: '0.2rem ' }}>
+                                    <span className={`text-xs ${labelText} mb-1`} style={{ fontSize: '16px' }}>
                                         LOW
                                     </span>
                                     <div className="flex items-baseline gap-1">
@@ -1026,14 +1041,14 @@ export default function SignalVisualizer() {
                                         >
                                             --
                                         </span>
-                                        <span className={`ml-1 ${labelText}`} style={{ fontSize: '10px' }}>
+                                        <span className={`ml-1 ${labelText}`} style={{ fontSize: '16px' }}>
                                             ms
                                         </span>
                                     </div>
                                 </div>
 
-                                <div className={`flex flex-col items-center ${statCardBg} rounded-lg`} style={{ padding: '0.5rem 0.25rem' }}>
-                                    <span className={`text-xs ${labelText} mb-1`} style={{ fontSize: '10px' }}>
+                                <div className={`flex flex-col items-center ${statCardBg} rounded-lg`} style={{ padding: '0.2rem ' }}>
+                                    <span className={`text-xs ${labelText} mb-1`} style={{ fontSize: '16px' }}>
                                         AVG
                                     </span>
                                     <div className="flex items-baseline gap-1">
@@ -1043,38 +1058,41 @@ export default function SignalVisualizer() {
                                         >
                                             --
                                         </span>
-                                        <span className={`ml-1 ${labelText}`} style={{ fontSize: '10px' }}>
+                                        <span className={`ml-1 ${labelText}`} style={{ fontSize: '16px' }}>
                                             ms
                                         </span>
                                     </div>
                                 </div>
 
-                                <div className={`flex flex-col items-center ${statCardBg} rounded-lg`} style={{ padding: '0.5rem 0.25rem' }}>
-                                    <span className={`text-xs ${labelText} mb-1`} style={{ fontSize: '10px' }}>
+                                <div className={`flex flex-col items-center ${statCardBg} rounded-lg`} style={{ padding: '0.2rem ' }}>
+                                    <span className={`text-xs ${labelText} mb-1`} style={{ fontSize: '16px' }}>
                                         HIGH
                                     </span>
                                     <div className="flex items-baseline gap-1">
                                         <span
                                             ref={hrvHighRef}
-                                            className={`text-sm font-semibold ${textPrimary}`}
+                                            className={`text-lg font-semibold ${textPrimary}`}
                                         >
                                             --
                                         </span>
-                                        <span className={`ml-1 ${labelText}`} style={{ fontSize: '10px' }}>
+                                        <span className={`ml-1 ${labelText}`} style={{ fontSize: '16px' }}>
                                             ms
                                         </span>
                                     </div>
                                 </div>
+                                <div className={`flex flex-col items-center ${statCardBg} rounded-lg`} style={{ padding: '0.2rem ' }}>
+                                    <span className={`text-xs ${labelText} mb-1`} style={{ fontSize: '16px' }}>
+                                        HRV
+                                    </span>
+                                    <div className="flex items-baseline gap-1">
+                                        <div className="flex items-center" style={{ transform: 'scale(0.8)' }}>
+                                            <StateIndicator state={displayState} />
+                                        </div>
+                                    </div>
+                                </div>
                             </div>
 
-                            {/* ── HRV Plot Section ── */}
-                            <div className="flex-1 min-h-0 overflow-hidden w-full rounded-lg">
-                                <HRVPlotCanvas
-                                    ref={hrvplotRef}
-                                    numPoints={2000}
-                                    color={darkMode ? '#f59e0b' : '#d97706'}
-                                />
-                            </div>
+
                         </div>
 
                         {/* ECG Chart - Remaining height */}
@@ -1095,14 +1113,28 @@ export default function SignalVisualizer() {
                 style={{ paddingLeft: '0.3125rem', paddingRight: '0.3125rem' }}>
                 <div className="w-full h-full flex flex-col sm:flex-row justify-between items-center">
                     <div className={`${textSecondary} text-xs sm:text-sm md:text-base mb-1 sm:mb-0`}>
-                        <span className="font-medium">Meditation Medusa</span> ©{" "}
-                        {new Date().getFullYear()}
+                        <span className="font-medium">Meditation Medusa</span> | &copy; {new Date().getFullYear()}{" "}     <Link href="https://upsidedownlabs.tech/" target="_blank">
+                            Upside Down Labs
+                        </Link>
                     </div>
 
                     {/* Optional: Add additional footer content on larger screens */}
-                    <div className={`${textSecondary} text-xs sm:text-sm hidden md:block`}>
-                        Real-time Biometric Monitoring
-                    </div>
+                    <nav className={`sm:ml-auto flex gap-4 sm:gap-6 ${textSecondary} `}>
+                        <Link
+                            className="text-sm hover:underline underline-offset-4"
+                            target="_blank"
+                            href="https://docs.upsidedownlabs.tech/guides/index.html"
+                        >
+                            Guides
+                        </Link>
+                        <Link
+                            className="text-sm hover:underline underline-offset-4"
+                            href="https://linktr.ee/Upside_Down_Labs_Stores"
+                            target="_blank"
+                        >
+                            Stores
+                        </Link>
+                    </nav>
                 </div>
             </footer>
         </div>

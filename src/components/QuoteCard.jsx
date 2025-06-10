@@ -1,27 +1,22 @@
 'use client';
 import React, { useState, useEffect } from 'react';
-import { getRandomQuote, getRandomQuoteByCategory, getAllCategories } from '../quote';
+import { getRandomQuote } from '../quote';
+// Mock quote function for demo
 
 const QuoteCard = ({ cardBg = 'bg-white', refreshInterval = 30000, darkMode = false }) => {
   const [currentQuote, setCurrentQuote] = useState(null);
   const [isLoading, setIsLoading] = useState(true);
-  const textPrimary = darkMode ? "text-slate-200" : "text-gray-800";
-  const textSecondary = darkMode ? "text-slate-400" : "text-gray-600";
-  const textAccent = darkMode ? "text-slate-300" : "text-gray-700";
-  const borderColor = darkMode ? "border-slate-700" : "border-gray-200";
+
+  // Enhanced color schemes
+  const textPrimary = darkMode ? "text-zinc-400" : "text-stone-500";
+  const textAccent = darkMode ? "text-amber-300" : "text-amber-600";
+  const shadowColor = darkMode ? "shadow-2xl shadow-slate-900/50" : "shadow-2xl shadow-blue-900/10";
+  const borderGlow = darkMode ? "border-slate-700/50" : "border-white/80";
 
   // Get a new random quote
   const refreshQuote = () => {
     setIsLoading(true);
     const newQuote = getRandomQuote();
-    setCurrentQuote(newQuote);
-    setIsLoading(false);
-  };
-
-  // Get quote by specific category
-  const getQuoteByCategory = (category) => {
-    setIsLoading(true);
-    const newQuote = getRandomQuoteByCategory(category);
     setCurrentQuote(newQuote);
     setIsLoading(false);
   };
@@ -41,9 +36,13 @@ const QuoteCard = ({ cardBg = 'bg-white', refreshInterval = 30000, darkMode = fa
 
   if (isLoading || !currentQuote) {
     return (
-      <div className={`rounded-xl shadow-md p-2 sm:p-3 md:p-4 border ${cardBg} flex flex-col transition-colors duration-300 h-full min-h-[120px] sm:min-h-[150px] overflow-hidden`}>
+      <div className={`relative overflow-hidden rounded-3xl ${shadowColor} p-8 border ${borderGlow}  flex flex-col transition-all duration-500 h-full backdrop-blur-sm`}>
+        <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/5 to-transparent -skew-x-12 animate-pulse"></div>
         <div className="flex-1 flex items-center justify-center">
-          <div className="animate-pulse text-gray-500 text-xs sm:text-sm">Loading quote...</div>
+          <div className="flex flex-col items-center space-y-4">
+            <div className="w-12 h-12 border-4 border-current border-t-transparent rounded-full animate-spin text-blue-500"></div>
+            <div className="text-gray-500 text-sm font-medium animate-pulse">Discovering wisdom...</div>
+          </div>
         </div>
       </div>
     );
@@ -53,40 +52,54 @@ const QuoteCard = ({ cardBg = 'bg-white', refreshInterval = 30000, darkMode = fa
   const getQuoteTextSize = () => {
     const quoteLength = currentQuote.text.length;
     if (quoteLength < 50) {
-      return "text-xs sm:text-sm md:text-base lg:text-lg";
+      return "text-sm sm:text-sm md:text-sm lg:text-sm xl:text-lg 2xl:text-2xl";
     } else if (quoteLength < 100) {
-      return "text-xs sm:text-sm md:text-base";
+      return "text-sm sm:text-sm md:text-sm lg:text-sm xl:text-lg 2xl:text-2xl";
     } else if (quoteLength < 150) {
-      return "text-xs sm:text-sm";
+      return "text-sm sm:text-sm md:text-sm lg:text-sm xl:text-lg 2xl:text-2xl";
     } else {
-      return "text-xs";
+      return "text-sm sm:text-sm md:text-sm";
     }
   };
- 
+
   return (
-    <div className={`rounded-xl p-2 sm:p-3 md:p-4  ${cardBg} flex flex-col transition-colors duration-300 h-full min-h-[120px] sm:min-h-[150px] overflow-hidden group hover:shadow-lg`}>
-      {/* Header with category badge and refresh button */}
+    <div className={`relative overflow-hidden rounded-2xl ${shadowColor} flex flex-col transition-all duration-500 h-full group backdrop-blur-sm`} style={{ padding: "10px" }}>
+      {/* Header with enhanced styling */}
+      <div className="relative z-10 ">
+        <div className={`flex justify-center items-center`}>
+          <div className={`px-6 py-2 rounded-full backdrop-blur-md shadow-lg`}>
+            <div className={`text-sm font-semibold tracking-wide ${textAccent} flex items-center space-x-2`}>
+              <span>Daily Wisdom</span>
+            </div>
+          </div>
+        </div>
+      </div>
+      {/* Quote content with enhanced typography */}
+      <div className="relative z-10 flex-1 flex flex-col justify-center overflow-hidden w-full">
+        <blockquote className={`${textPrimary} ${getQuoteTextSize()} leading-relaxed  overflow-hidden flex-1 flex items-center w-full font-light`}>
+          <div className="w-full text-center relative">
+            {/* Decorative quote marks */}
+            <div className="relative">
 
-      <div className={`flex justify-center items-center mb-2 sm:mb-3 mx-4 mt-8 text-sm sm:text-base md:text-lg lg:text-xl font-semibold  ${textPrimary}`}>Good saying</div>
+              <div className="px-8 leading-relaxed font-medium">
+                <span className="break-words hyphens-auto">{currentQuote.text}</span>
+              </div>
 
-      {/* Quote content */}
-      <div className="flex-1 flex flex-col justify-center overflow-hidden w-full">
-        <blockquote className={`${textPrimary} ${getQuoteTextSize()} leading-tight sm:leading-relaxed mb-2 sm:mb-3 overflow-hidden flex-1 flex items-center w-full`}>
-          <div className="w-full px-1">
-            <span className={`text-lg ${textSecondary} leading-none`}>"</span>
-            <span className="break-words hyphens-auto">{currentQuote.text}</span>
-            <span className={`text-lg ${textSecondary} leading-none`}>"</span>
+            </div>
           </div>
         </blockquote>
-
-        <footer className="w-[90%] px-6 ">
-          <cite className={`${textAccent} text-xs sm:text-sm font-medium not-italic block text-right w-full overflow-hidden`}>
-            <div className="break-words hyphens-auto max-w-full mr-4">
-              — {currentQuote.author}
+        {/* Enhanced author attribution */}
+        <footer className="relative z-10 w-full mb-8">
+          <div className="flex justify-center">
+            <div className={`px-6 py-3 rounded-2xl ${darkMode ? 'bg-slate-800/40' : 'bg-white/40'} backdrop-blur-md  shadow-lg`}>
+              <cite className={`${textAccent} text-sm font-semibold not-italic flex items-center space-x-2 tracking-wide`}>
+                <span>— {currentQuote.author}</span>
+              </cite>
             </div>
-          </cite>
+          </div>
         </footer>
       </div>
+
     </div>
   );
 };

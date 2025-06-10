@@ -31,7 +31,7 @@ const MeditationAnalysis: React.FC<Props> = ({
       avgBeta: 0,
       avgTheta: 0,
       avgDelta: 0,
-        deepestTheta: 0,
+      deepestTheta: 0,
       consistency: 0,
       flowState: 0,
       statePercentages: {
@@ -53,7 +53,7 @@ const MeditationAnalysis: React.FC<Props> = ({
     // Consistent state classification logic
     const classifyState = (alpha: number, beta: number, theta: number, delta: number) => {
       const values = { alpha, beta, theta, delta };
-       const maxKey = Object.keys(values).reduce((a, b) => values[a as keyof typeof values] > values[b as keyof typeof values] ? a : b);
+      const maxKey = Object.keys(values).reduce((a, b) => values[a as keyof typeof values] > values[b as keyof typeof values] ? a : b);
 
       switch (maxKey) {
         case 'alpha': return 'Relaxed';
@@ -164,12 +164,12 @@ const MeditationAnalysis: React.FC<Props> = ({
     ctx.fillStyle = 'rgba(15, 23, 42, 0.7)';
     ctx.fillRect(0, 0, width, height);
 
-   const stateColors = {
-  relaxed: '#34d399',     // mint green - Apple Watch wellness green
-  focused: '#f97316',     // vibrant orange - activity/energy indicator
-  deep: '#6366f1',        // electric blue - tech sophistication
-  drowsy: '#9ca3af'       // cool gray - subtle, non-intrusive
-};
+    const stateColors = {
+      relaxed: '#34d399',     // mint green - Apple Watch wellness green
+      focused: '#f97316',     // vibrant orange - activity/energy indicator
+      deep: '#6366f1',        // electric blue - tech sophistication
+      drowsy: '#9ca3af'       // cool gray - subtle, non-intrusive
+    };
 
     metrics.phases.forEach((phase, i) => {
       const x = padding + i * barWidth;
@@ -229,23 +229,23 @@ const MeditationAnalysis: React.FC<Props> = ({
 
 
   const getPhaseColor = (phase: string) => {
-  switch (phase.toLowerCase()) {
-    case 'relaxed': return 'bg-emerald-400';  // closest to mint green (#34d399)
-    case 'focused': return 'bg-orange-500';   // close to vibrant orange (#f97316)
-    case 'meditation': return 'bg-indigo-500';// close to electric blue (#6366f1)
-    case 'drowsy': return 'bg-gray-400';      // close to cool gray (#9ca3af)
-    default: return 'bg-slate-500';
-  }
-};
+    switch (phase.toLowerCase()) {
+      case 'relaxed': return 'bg-emerald-400';  // closest to mint green (#34d399)
+      case 'focused': return 'bg-orange-500';   // close to vibrant orange (#f97316)
+      case 'meditation': return 'bg-indigo-500';// close to electric blue (#6366f1)
+      case 'drowsy': return 'bg-gray-400';      // close to cool gray (#9ca3af)
+      default: return 'bg-slate-500';
+    }
+  };
 
-  
+
 
   return (
     <div className={`w-full  h-full  bg-slate-800 rounded-sm overflow-hidden shadow-2xl ${className}`}>
-      <div className="p-6">
+      <div className="p-6" style={{ padding: '10px' }}>
         {/* Phases Canvas */}
-        <div className="mb-4">
-          <div className="flex items-center justify-between mb-2">
+        <div className="mb-4" >
+          <div className="flex items-center justify-between mb-2" style={{ padding: '10px' }}>
             <span className="text-sm text-slate-400">Session Phases</span>
             <span className="text-xs text-slate-500">{metrics.phases.length} phases detected</span>
           </div>
@@ -256,16 +256,16 @@ const MeditationAnalysis: React.FC<Props> = ({
         <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 mb-6 h-20">
 
           {Object.entries(metrics.statePercentages).map(([state, pct]) => (
-           <div key={state} className="flex items-center gap-2">
-  <div className={`w-3 h-3 rounded-full ${getPhaseColor(state)}`}></div>
-  <div className="text-xs text-slate-300">{state}</div>
-</div>
+            <div key={state} className="flex items-center gap-2">
+              <div className={`w-3 h-3 rounded-full ${getPhaseColor(state)}`}></div>
+              <div className="text-xs text-slate-300">{state}</div>
+            </div>
 
           ))}
         </div>
 
         {/* Session Insights */}
-        <div className="mt-6 p-4 bg-emerald-900/20 rounded-xl border border-emerald-800/30">
+        <div className="mt-6 p-4 bg-emerald-900/20 rounded-xl border border-emerald-800/30" style={{ padding: '10px' }}>
           <div className="flex items-center space-x-2 mb-2">
             <Award className="w-4 h-10 text-emerald-400" />
             <span className="text-sm font-medium text-emerald-300">Session Insights</span>

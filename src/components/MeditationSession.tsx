@@ -7,8 +7,11 @@ import { useBleStream } from '../components/Bledata';
 export const MeditationSession = ({
     onStartSession,
     connected,
+    setShowResults,
     onEndSession,
     sessionData,
+    sessionResults,
+    setSessionResults,
     darkMode,
     renderSessionResults
 }: {
@@ -17,6 +20,69 @@ export const MeditationSession = ({
     sessionData: { timestamp: number; alpha: number; beta: number; theta: number; delta: number; symmetry: number }[];
     darkMode: boolean;
     connected: boolean;
+    setShowResults: React.Dispatch<React.SetStateAction<boolean>>;
+    sessionResults?: {
+        duration: number;
+        averages: {
+            alpha: number;
+            beta: number;
+            theta: number;
+            delta: number;
+            symmetry: number;
+        };
+        mentalState: string;
+        stateDescription: string;
+        focusScore: string;
+        symmetry: string;
+        data: {
+            timestamp: number;
+            alpha: number;
+            beta: number;
+            theta: number;
+            delta: number;
+            symmetry: number;
+        }[];
+        dominantBands: Record<string, number>;
+        mostFrequent: string;
+        convert: (ticks: number) => string;
+        avgSymmetry: string;
+        formattedDuration: string;
+        statePercentages: Record<string, string>;
+        goodMeditationPct: string;
+        weightedEEGScore: number;
+    } | null;
+
+    setSessionResults: React.Dispatch<React.SetStateAction<{
+        duration: number;
+        averages: {
+            alpha: number;
+            beta: number;
+            theta: number;
+            delta: number;
+            symmetry: number;
+        };
+        mentalState: string;
+        stateDescription: string;
+        focusScore: string;
+        symmetry: string;
+        data: {
+            timestamp: number;
+            alpha: number;
+            beta: number;
+            theta: number;
+            delta: number;
+            symmetry: number;
+        }[];
+        dominantBands: Record<string, number>;
+        mostFrequent: string;
+        convert: (ticks: number) => string;
+        avgSymmetry: string;
+        formattedDuration: string;
+        statePercentages: Record<string, string>;
+        goodMeditationPct: string;
+        weightedEEGScore: number;
+    } | null>>;
+
     renderSessionResults?: (results: {
         dominantBands: Record<string, number>;
         mostFrequent: string;
@@ -38,31 +104,10 @@ export const MeditationSession = ({
     const [isMeditating, setIsMeditating] = useState(false);
     const [duration, setDuration] = useState(3);
     const [timeLeft, setTimeLeft] = useState(0);
-    const [sessionResults, setSessionResults] = useState<{
-        duration: number;
-        averages: {
-            alpha: number;
-            beta: number;
-            theta: number;
-            delta: number;
-            symmetry: number;
-        };
-        mentalState: string;
-        stateDescription: string;
-        focusScore: string;
-        symmetry: string;
-        data: typeof sessionData;
-        dominantBands: Record<string, number>;
-        mostFrequent: string;
-        convert: (ticks: number) => string;
-        avgSymmetry: string;
-        formattedDuration: string;
-        statePercentages: Record<string, string>;
-        goodMeditationPct: string;
-        weightedEEGScore: number;
-    } | null>(null);
     const sessionStartTime = useRef<number | null>(null);
     const selectedGoalRef = useRef<string>('meditation');
+    const buttonbg = darkMode ? "bg-amber-300" : "bg-amber-600";
+    const durationbtnBg = darkMode ? "bg-zinc-700/50" : "bg-stone-100/80";
 
     const startMeditation = () => {
         setIsMeditating(true);
@@ -207,38 +252,32 @@ export const MeditationSession = ({
                         {/* Main Content - Uses remaining space */}
                         <div className="flex-1 flex flex-col justify-center space-y-4 sm:space-y-6 md:space-y-8 min-h-0">
                             {/* Duration Selection */}
-                            <div className="space-y-2 px-1 sm:px-2">
-                                <label className={`text-xs sm:text-sm md:text-base font-semibold ${textPrimary} block text-center`}>
-                                    Choose Duration
-                                </label>
-
+                            <div className="space-y-2 px-6 " style={{ padding: "10px" }}>
                                 {/* Duration Buttons - Responsive grid */}
+                                <div className="grid grid-cols-2 rounded-md overflow-hidden border border-[0.1px] dark:border-zinc-400 w-full lg:h-[6rem] xl:h-[6rem] 2xl:h-[10rem] max-w-sm text-[10px] sm:text-xs">
+                                    {[3, 5, 10, 15].map((val) => (
+                                        <div
+                                            key={val}
+                                            className="border border-t-0 border-l-0 border-r  last:border-b-0"
+                                        >
+                                            <button
+                                                onClick={() => setDuration(val)}
+                                                disabled={!connected}
+                                                className={`w-full h-full px-2 py-1 sm:px-2.5 sm:py-1.5 transition-all duration-300 font-semibold 
+                    ${duration === val
+                                                        ? `${buttonbg} text-zinc-800/90 `
+                                                        : `${durationbtnBg} ${darkMode ?"text-gray-200":"text-black"}`}
+                    ${!connected ? 'opacity-40 cursor-not-allowed' : 'hover:scale-[1.03] cursor-pointer'}
+                `}
+                                            >
+                                                <div className="flex flex-col items-center leading-tight space-y-0.5">
+                                                    <span className="text-[1.5rem] ">{val} min</span>
+                                                </div>
+                                            </button>
+                                        </div>
+                                    ))}
+                                </div>
 
-                               <div className="flex flex-wrap sm:flex-nowrap rounded-md overflow-hidden border border-[0.1px] dark:border-zinc-400 w-full max-w-sm text-[10px] sm:text-xs">
-                        {[3, 5, 10, 15].map((val, idx) => (
-                            <div
-                                key={val}
-                                className={`min-w-[50%] sm:min-w-0 flex-1 border-l border-l-[0.5px] dark:border-zinc-600 ${idx === 0 ? 'border-l-0' : ''}`}
-                            >
-                                <button
-                                    onClick={() => setDuration(val)}
-                                    disabled={!connected}
-                                    className={`w-full h-full px-2 py-1 sm:px-2.5 sm:py-1.5 transition-all duration-300 font-semibold
-                                        ${duration === val
-                                            ? 'bg-[#D9777B] text-white'
-                                            : 'bg-white dark:bg-zinc-800 text-gray-700 dark:text-gray-200'}
-                                        ${!connected ? 'opacity-40 cursor-not-allowed' : 'hover:scale-[1.03]'}
-                                    `}
-                                >
-                                    <div className="flex flex-col items-center leading-tight space-y-0.5">
-                                        <span className="text-[11px] sm:text-xs">{val}</span>
-                                        <span className="text-[9px] sm:text-[10px] opacity-70">min</span>
-                                    </div>
-                                </button>
-                            </div>
-                        ))}
-                   
-                               </div>
 
 
                             </div>
@@ -249,14 +288,13 @@ export const MeditationSession = ({
                                 disabled={!connected}
                                 onClick={startMeditation}
                                 className={`  min-w-[120px] max-w-[160px] w-auto px-4 py-2 sm:px-5 sm:py-2.5 md:px-6 md:py-3 text-xs sm:text-sm md:text-base 
-                               rounded-xl transition-all duration-300 flex items-center justify-center gap-2 whitespace-nowrap shadow-sm hover:shadow-md transform hover:scale-105
+                               rounded-xl transition-all duration-300 flex items-center justify-center gap-2 whitespace-nowrap shadow-sm hover:shadow-md transform hover:scale-105  text-zinc-800/90 text-black
                            ${connected
-                                        ? 'bg-[#E4967E] hover:bg-[#d7856e] text-white border-2 border-[#E4967E] hover:border-[#d7856e]'
-                                        : 'bg-[#E4967E] opacity-50 text-white border-2 border-[#E4967E] cursor-not-allowed'
+                                        ? `${buttonbg} cursor-pointer `
+                                        : 'bg-[#E4967E] opacity-50 text-white cursor-not-allowed'
                                     }
                                  `}
                             >
-                                <div className="absolute inset-0 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
                                 <span className="relative z-10 truncate">Begin Session</span>
                             </button>
                         </div>
@@ -288,23 +326,17 @@ export const MeditationSession = ({
                         </div>
 
                         {/* New Session Button - Responsive sizing */}
-                        <div className="pt-1 sm:pt-2 px-1 sm:px-2 pb-1 sm:pb-2 flex-shrink-0">
+                        <div className="flex justify-center " style={{ paddingBottom: '0.75rem' }}>
                             <button
-                                onClick={() => setSessionResults(null)}
+                                onClick={() => setShowResults(true)}
                                 className={`
-                                    group relative overflow-hidden
-                                    w-full px-4 py-2 sm:px-6 sm:py-3
-                                    bg-gradient-to-r from-[#548687] via-[#6B9FA0] to-[#7FADB0] 
-                                    hover:scale-105
-                                    text-white font-bold rounded-lg transition-all duration-300 
-                                    flex items-center justify-center space-x-2 shadow-lg
-                                    text-sm sm:text-base
+                                  min-w-[120px] max-w-[160px] w-auto px-4 py-2 sm:px-5 sm:py-2.5 md:px-6 md:py-3 text-xs sm:text-sm md:text-base 
+                            rounded-xl transition-all duration-300 flex items-center justify-center gap-2 whitespace-nowrap shadow-sm hover:shadow-md transform hover:scale-105
+    text-black cursor-pointer  ${buttonbg}
                                 `}
                             >
-                                <svg className="w-4 h-4 sm:w-5 sm:h-5 relative z-10 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
-                                </svg>
-                                <span className="relative z-10 truncate">Start New Session</span>
+
+                                <span className="relative z-10 truncate"> View Results</span>
                             </button>
                         </div>
                     </div>
@@ -319,10 +351,10 @@ export const MeditationSession = ({
                         {/* Responsive Timer Display */}
                         <div className="absolute inset-0 flex items-center justify-center">
                             <div className={`text-center ${accent}`}>
-                                <div className="text-sm sm:text-md md:text-lg lg:text-xl font-bold font-mono leading-tight">
+                                <div className="text-lg sm:text-lg md:text-lg lg:text-2xl font-bold font-mono leading-tight">
                                     {Math.floor(timeLeft / 60)}:{(timeLeft % 60).toString().padStart(2, '0')}
                                 </div>
-                                <div className="text-xs sm:text-sm md:text-base opacity-70 mt-1">
+                                <div className="text-xs sm:text-sm md:text-2xl opacity-70 mt-1">
                                     remaining
                                 </div>
                             </div>
@@ -332,7 +364,7 @@ export const MeditationSession = ({
                             <circle
                                 cx="50"
                                 cy="50"
-                                r="48"
+                                r="40"
                                 stroke={darkMode ? "#548687" : "#548687"}
                                 strokeWidth="1"
                                 fill="none"
@@ -340,7 +372,7 @@ export const MeditationSession = ({
                             <circle
                                 cx="50"
                                 cy="50"
-                                r="46"
+                                r="38"
                                 stroke={darkMode ? "#548687" : "#548687"}
                                 strokeWidth="2"
                                 fill="none"
@@ -348,7 +380,7 @@ export const MeditationSession = ({
                             <circle
                                 cx="50"
                                 cy="50"
-                                r="46"
+                                r="38"
                                 stroke="url(#progressGradient)"
                                 strokeWidth="3"
                                 fill="none"
@@ -370,10 +402,13 @@ export const MeditationSession = ({
                     {/* Responsive End Session Button */}
                     <button
                         onClick={stopMeditation}
-                        className={`group relative overflow-hidden px-4 py-2 sm:px-5 sm:py-2.5 md:px-6 md:py-3 bg-[#548687] hover:scale-105
-                            text-white font-bold rounded-lg transition-all duration-300 flex items-center justify-center space-x-2 shadow-lg 
-                            text-sm sm:text-base w-full max-w-xs
-                        `}
+                        className={`  min-w-[120px] max-w-[160px] w-auto px-4 py-2 sm:px-5 sm:py-2.5 md:px-6 md:py-3 text-xs sm:text-sm md:text-base 
+                            rounded-xl transition-all duration-300 flex items-center justify-center gap-2 whitespace-nowrap shadow-sm hover:shadow-md transform hover:scale-105
+        text-black  cursor-pointer
+                                ${buttonbg}
+                                 
+                              `}
+                        style={{ marginBottom: '0.75rem' }}
                     >
                         <div className="absolute inset-0 bg-gradient-to-r from-white/10 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
                         <svg className="w-4 h-4 sm:w-5 sm:h-5 relative z-10 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">

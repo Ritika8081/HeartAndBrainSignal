@@ -39,7 +39,58 @@ type Props = {
     const wglpRef = useRef<WebglPlot | null>(null)
     const linesRef = useRef<Record<string, WebglLine>>({})
     const sweepRef = useRef(0)
+    const containerRef = useRef<HTMLDivElement>(null)
+       // Constants (could be props if needed)
+       const samplingRate = 500
+       const selectedBits = 10
+       const theme = 'dark'
+       const gridCreatedRef = useRef(false) // Track if grid has been created
 
+    // Create grid lines (only once)
+    const createGridLines = () => {
+      if (!containerRef.current || gridCreatedRef.current) return
+      gridCreatedRef.current = true
+
+      const canvasWrapper = document.createElement("div")
+      canvasWrapper.className = "grid-lines-wrapper absolute inset-0 pointer-events-none"
+
+      const opacityDarkMajor = "0.2"
+      const opacityDarkMinor = "0.05"
+      const opacityLightMajor = "0.4"
+      const opacityLightMinor = "0.1"
+      const distanceminor = samplingRate * 0.04
+      const numGridLines = (Math.pow(2, selectedBits) * 4 / distanceminor)
+
+      // Vertical lines
+      for (let j = 1; j < numGridLines; j++) {
+        const gridLineX = document.createElement("div")
+        gridLineX.className = "absolute bg-[rgb(128,128,128)]"
+        gridLineX.style.width = "1px"
+        gridLineX.style.height = "100%"
+        gridLineX.style.left = `${((j / numGridLines) * 100).toFixed(3)}%`
+        gridLineX.style.opacity = j % 5 === 0
+          ? (theme === "dark" ? opacityDarkMajor : opacityLightMajor)
+          : (theme === "dark" ? opacityDarkMinor : opacityLightMinor)
+        canvasWrapper.appendChild(gridLineX)
+      }
+
+      // Horizontal lines
+      const horizontalline = 50
+      for (let j = 1; j < horizontalline; j++) {
+        const gridLineY = document.createElement("div")
+        gridLineY.className = "absolute bg-[rgb(128,128,128)]"
+        gridLineY.style.height = "1px"
+        gridLineY.style.width = "100%"
+        gridLineY.style.top = `${((j / horizontalline) * 100).toFixed(3)}%`
+        gridLineY.style.opacity = j % 5 === 0
+          ? (theme === "dark" ? opacityDarkMajor : opacityLightMajor)
+          : (theme === "dark" ? opacityDarkMinor : opacityLightMinor)
+        canvasWrapper.appendChild(gridLineY)
+      }
+
+      containerRef.current.appendChild(canvasWrapper)
+    }
+    createGridLines();
     useImperativeHandle(
       ref,
       () => ({
@@ -68,43 +119,32 @@ type Props = {
     )
 
 
-    // 1) ResizeObserver effect to match container size
-    useEffect(() => {
-      const canvas = canvasRef.current!
-      const onResize = () => {
-        const { width, height } = canvas.getBoundingClientRect()
-        const dpr = window.devicePixelRatio || 1
-        canvas.width = width * dpr
-        canvas.height = height * dpr
-        const gl = canvas.getContext('webgl')
-        if (gl) gl.viewport(0, 0, canvas.width, canvas.height)
-        wglpRef.current?.update()
-      }
 
-      const ro = new ResizeObserver(onResize)
-      ro.observe(canvas)
-      // Initial sizing
-      onResize()
+    // Initialize WebGL plot and lines
+    const initWebglPlot = () => {
+      const canvas = canvasRef.current
+      if (!canvas) return
 
-      return () => ro.disconnect()
-    }, [])
+      // Set initial canvas size
+      const { width, height } = canvas.getBoundingClientRect()
+      const dpr = window.devicePixelRatio || 1
+      canvas.width = width * dpr
+      canvas.height = height * dpr
 
-
-    // Initialize plot & lines on channel list or data length change
-    useEffect(() => {
-
-      const canvas = canvasRef.current!
+      // Create WebGL plot
       const wglp = new WebglPlot(canvas)
       wglpRef.current = wglp
       linesRef.current = {}
 
+      // Create lines for each channel
       channels.forEach((ch: number) => {
         const line = new WebglLine(hexToColorRGBA(colors[ch]), 2000)
         line.lineSpaceX(-1, 2 / 2000)
-
-        // **NEW**: mark every sample as “no data”:
+        
+        // Initialize with some default data (sin wave for example)
         for (let i = 0; i < line.numPoints; i++) {
-          line.setY(i, NaN)
+          const x = (i / line.numPoints) * 4 * Math.PI
+          line.setY(i, Math.sin(x) * 0.8)
         }
 
         linesRef.current[ch] = line
@@ -113,18 +153,45 @@ type Props = {
 
       wglp.update()
       sweepRef.current = 0
+      createGridLines()
+    }
+
+    // 1) Initial setup effect
+    useEffect(() => {
+      initWebglPlot()
+
+      // 2) Resize observer for responsive sizing
+      const canvas = canvasRef.current
+      if (!canvas) return
+
+      const onResize = () => {
+        const { width, height } = canvas.getBoundingClientRect()
+        const dpr = window.devicePixelRatio || 1
+        canvas.width = width * dpr
+        canvas.height = height * dpr
+        wglpRef.current?.update()
+      }
+
+      const ro = new ResizeObserver(onResize)
+      ro.observe(canvas)
+      onResize() // Initial sizing
 
       return () => {
+        ro.disconnect()
         wglpRef.current = null
         linesRef.current = {}
       }
-    }, [])
+    }, []) // Empty dependency array means this runs once on mount
 
     return (
+      <div ref={containerRef} className="relative w-full h-full">
+
       <canvas
         ref={canvasRef}
         style={{ width: '100%', height: '100%', display: 'block' }}
       />
+            </div>
+
     )
   }
 )

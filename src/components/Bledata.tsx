@@ -19,6 +19,7 @@ export function useBleStream(datastreamCallback?: (data: number[]) => void) {
   const deviceRef = useRef<BluetoothDevice | null>(null);
   const controlRef = useRef<BluetoothRemoteGATTCharacteristic | null>(null);
   const dataRef = useRef<BluetoothRemoteGATTCharacteristic | null>(null);
+  let samplesReceived = 0;
 
 
   const processSample = useCallback((dataView: DataView) => {
@@ -30,6 +31,7 @@ export function useBleStream(datastreamCallback?: (data: number[]) => void) {
       dataView.getInt16(3, false), // raw1 (EEG 2)
       dataView.getInt16(5, false)  // raw2 (ECG)
     ]);
+
   }, [datastreamCallback]);
 
   const handleNotification = (event: Event) => {
@@ -42,9 +44,13 @@ export function useBleStream(datastreamCallback?: (data: number[]) => void) {
         const sampleBuffer = value.buffer.slice(i, i + SINGLE_SAMPLE_LEN);
         const sampleDataView = new DataView(sampleBuffer);
         processSample(sampleDataView);
+        samplesReceived++;
+
       }
     } else if (value.byteLength === SINGLE_SAMPLE_LEN) {
       processSample(new DataView(value.buffer));
+      samplesReceived++;
+
     }
   };
 
@@ -60,11 +66,18 @@ export function useBleStream(datastreamCallback?: (data: number[]) => void) {
       controlRef.current = await svc.getCharacteristic(CONTROL_CHAR_UUID);
       dataRef.current = await svc.getCharacteristic(DATA_CHAR_UUID);
       setConnected(true);
-
+      setInterval(() => {
+        console.log("Samples per second: " + samplesReceived);
+        if (samplesReceived === 0) {
+          disconnect();
+          window.location.reload();
+        }
+        samplesReceived = 0;
+      }, 1000);
       // Automatically send START command after successful connection
       await start();
     } catch (error) {
-      console.error("Connection failed:", error);
+      console.log("Error: " + (error instanceof Error ? error.message : error));
     }
   };
 
@@ -113,6 +126,7 @@ export function useBleStream(datastreamCallback?: (data: number[]) => void) {
     // State update triggers clearCanvas via effect
     setStreaming(false);
     setConnected(false);
+    window.location.reload();
 
   };
 
