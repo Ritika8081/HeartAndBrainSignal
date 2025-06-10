@@ -240,7 +240,6 @@ export const MeditationSession = ({
     const progressPercentage = isMeditating ? ((duration * 60 - timeLeft) / (duration * 60)) * 100 : 0;
 
     const textPrimary = darkMode ? "text-stone-100" : "text-stone-800";
-    const textSecondary = darkMode ? "text-stone-400" : "text-stone-600";
     const accent = darkMode ? "text-blue-400" : "text-blue-600";
 
     return (
@@ -254,7 +253,7 @@ export const MeditationSession = ({
                             {/* Duration Selection */}
                             <div className="space-y-2 px-6 " style={{ padding: "10px" }}>
                                 {/* Duration Buttons - Responsive grid */}
-                                <div className="grid grid-cols-2 rounded-md overflow-hidden border border-[0.1px] dark:border-zinc-400 w-full lg:h-[6rem] xl:h-[6rem] 2xl:h-[10rem] max-w-sm text-[10px] sm:text-xs">
+                                <div className="grid grid-cols-2 rounded-md overflow-hidden border border-[0.1px] dark:border-zinc-400 w-full lg:h-[4rem] xl:h-[6rem] 2xl:h-[10rem] max-w-sm text-[10px] sm:text-xs">
                                     {[3, 5, 10, 15].map((val) => (
                                         <div
                                             key={val}
