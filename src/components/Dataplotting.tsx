@@ -43,7 +43,6 @@ export default function SignalVisualizer() {
     const dataProcessorWorkerRef = useRef<Worker | null>(null);
     // Animation state
     const [isBeating, setIsBeating] = useState(false);
-    const [userState, setUserState] = useState<State>("no_data");
     const [displayState, setDisplayState] = useState<State>("no_data");
     const stateWindowRef = useRef<{ state: State; timestamp: number }[]>([]);
     const lastStateUpdateRef = useRef<number>(0);
@@ -335,7 +334,6 @@ export default function SignalVisualizer() {
 
 
             const currentState = predictState({ sdnn, rmssd, pnn50 });
-            setUserState(currentState);
 
             // State window management for 5-second updates
             const now = Date.now();
@@ -407,14 +405,12 @@ export default function SignalVisualizer() {
             lastStateUpdateRef.current = Date.now();
             stateWindowRef.current = [];
             setDisplayState("no_data");
-            setUserState("no_data");
         } else {
             // Reset when device disconnects
             connectionStartRef.current = null;
             lastStateUpdateRef.current = 0;
             stateWindowRef.current = [];
             setDisplayState("no_data");
-            setUserState("no_data");
         }
     }, [connected]);
 
