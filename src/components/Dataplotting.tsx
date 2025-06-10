@@ -461,8 +461,8 @@ export default function SignalVisualizer() {
                     <div className="flex items-center space-x-3">
                         <Activity className={`${primaryAccent} w-4 h-4 sm:w-5 sm:h-5 md:w-6 md:h-6 lg:w-7 lg:h-7`} />
                         <h1 className="text-sm sm:text-base md:text-lg lg:text-xl xl:text-2xl font-light tracking-tight">
-                            <span className={`font-bold ${textPrimary}`}>Meditation</span>
-                            <span className={`${primaryAccent} font-medium ml-1`}>Medusa</span>
+                            <span className={`font-bold ${textPrimary}`}>Cort</span>
+                            <span className={`${primaryAccent} font-medium ml-1`}>EX</span>
                         </h1>
                     </div>
                     <div className="flex items-center" style={{ gap: '1.25rem' }}>
@@ -795,7 +795,7 @@ export default function SignalVisualizer() {
                                                 <ResponsiveContainer width="100%" height="100%">
                                                     <RadarChart
                                                         data={radarDataCh0Ref.current.length ? radarDataCh0Ref.current : bandData}
-                                                        cx="50%" cy="50%" outerRadius="70%"
+                                                        cx="50%" cy="50%" outerRadius="80%"
                                                     >
                                                         <PolarGrid
                                                             strokeDasharray="2 3"
@@ -825,7 +825,7 @@ export default function SignalVisualizer() {
                                                     </RadarChart>
                                                 </ResponsiveContainer>
                                             </div>
-                                            <div className="text-center mt-1 sm:mt-2">
+                                            <div className="text-center ">
                                                 <div className={`text-xs sm:text-sm md:text-base font-semibold ${primaryAccent}`}>
                                                     Left Hemisphere
                                                 </div>
@@ -840,7 +840,7 @@ export default function SignalVisualizer() {
                                                 <ResponsiveContainer width="100%" height="100%">
                                                     <RadarChart
                                                         data={radarDataCh1Ref.current.length ? radarDataCh1Ref.current : bandData}
-                                                        cx="50%" cy="50%" outerRadius="70%"
+                                                        cx="50%" cy="50%" outerRadius="80%"
                                                     >
                                                         <PolarGrid
                                                             strokeDasharray="2 3"
@@ -870,7 +870,7 @@ export default function SignalVisualizer() {
                                                     </RadarChart>
                                                 </ResponsiveContainer>
                                             </div>
-                                            <div className="text-center mt-1 sm:mt-2">
+                                            <div className="text-center ">
                                                 <div className={`text-xs sm:text-sm md:text-base font-semibold ${primaryAccent}`}>
                                                     Right Hemisphere
                                                 </div>
@@ -933,7 +933,7 @@ export default function SignalVisualizer() {
                         </div>
 
                         {/* ECG Row 2: BPM + HRV Info - Clean & Spacious */}
-                        <div className={`${cardBg} rounded-xl shadow-md border transition-colors duration-300 h-2/5 min-h-0 overflow-hidden flex flex-col`} style={{ padding: '0.1rem' }}>
+                        <div className={`${cardBg} rounded-xl shadow-md border transition-colors duration-300 h-2/5 min-h-0 overflow-hidden flex flex-col`} style={{ padding: '0.3rem' }}>
                             {/* ── Top Section: Heart Rate Stats ── */}
                             <div className="grid grid-cols-5 gap-2  flex-shrink-0 mb-3 " style={{ padding: '2px' }}>
                                 {/* Current BPM - takes 2 columns */}
@@ -1009,20 +1009,16 @@ export default function SignalVisualizer() {
                                 </div>
                             </div>
                             {/* ── HRV Plot Section ── */}
-                            <div className="flex-1 min-h-0 overflow-hidden w-full rounded-xl">
+                            <div className="flex-1 min-h-0 overflow-hidden w-full rounded-xl 
+                            "style={{ padding: '0.2rem ' }}
+                            >
                                 <HRVPlotCanvas
                                     ref={hrvplotRef}
                                     numPoints={2000}
                                     color={darkMode ? '#f59e0b' : '#d97706'}
+                                    darkMode={darkMode}
                                 />
                             </div>
-                            {/* ── Divider Section ── */}
-                            <div className="flex items-center gap-2 flex-shrink-0 " style={{ height: '2%', paddingBottom: "10px" }}>
-                                {/* Divider Line */}
-                                <div className="flex-1 h-px bg-stone-200 dark:bg-zinc-700" />
-
-                            </div>
-
                             {/* ── HRV Stats Section - Smaller ── */}
                             <div className="grid grid-cols-4 gap-1 sm:gap-2 flex-shrink-0 mb-3" style={{ marginBottom: "1px" }}>
 
@@ -1076,7 +1072,9 @@ export default function SignalVisualizer() {
                                         </span>
                                     </div>
                                 </div>
-                                <div className={`flex flex-col items-center ${statCardBg} rounded-lg`} style={{ padding: '0.2rem ' }}>
+                                <div className={`flex flex-col items-center ${
+                                    darkMode? "bg-zinc-900" : "bg-stone-300"
+                                } rounded-lg`} style={{ padding: '0.2rem ' }}>
                                     <span className={`text-xs ${labelText} mb-1`} style={{ fontSize: '16px' }}>
                                         HRV
                                     </span>
@@ -1107,9 +1105,9 @@ export default function SignalVisualizer() {
             <footer className={`h-[4%] py-1 ${darkMode ? "bg-zinc-900/90 border-t border-amber-900/20" : "bg-white/90 backdrop-blur-sm border-t border-amber-100"} 
                 shadow-inner transition-colors duration-300 z-10 flex-shrink-0`}
                 style={{ paddingLeft: '0.3125rem', paddingRight: '0.3125rem' }}>
-                <div className="w-full h-full flex flex-col sm:flex-row justify-between items-center">
+                <div className="w-full h-full flex flex-col sm:flex-row justify-between items-center" style={{ paddingLeft: '1.25rem', paddingRight: '1.25rem' }}>
                     <div className={`${textSecondary} text-xs sm:text-sm md:text-base mb-1 sm:mb-0`}>
-                        <span className="font-medium">Meditation Medusa</span> | &copy; {new Date().getFullYear()}{" "}     <Link href="https://upsidedownlabs.tech/" target="_blank">
+                        <span className="font-medium">CortEX</span> | &copy; {new Date().getFullYear()}{" "}     <Link href="https://upsidedownlabs.tech/" target="_blank">
                             Upside Down Labs
                         </Link>
                     </div>

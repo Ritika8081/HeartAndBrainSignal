@@ -67,8 +67,8 @@ const QuoteCard = ({ cardBg = 'bg-white', refreshInterval = 30000, darkMode = fa
       {/* Header with enhanced styling */}
       <div className="relative z-10 ">
         <div className={`flex justify-center items-center`}>
-          <div className={`px-6 py-2 rounded-full backdrop-blur-md shadow-lg`}>
-            <div className={`text-sm font-semibold tracking-wide ${textAccent} flex items-center space-x-2`}>
+          <div className={`px-6 py-2 rounded-full backdrop-blur-md`}>
+            <div className={`text-md 2xl:text-2xl font-semibold tracking-wide ${textAccent} flex items-center space-x-2`}>
               <span>Daily Wisdom</span>
             </div>
           </div>
@@ -92,7 +92,7 @@ const QuoteCard = ({ cardBg = 'bg-white', refreshInterval = 30000, darkMode = fa
         <footer className="relative z-10 w-full mb-8">
           <div className="flex justify-center">
             <div className={`px-6 py-3 rounded-2xl ${darkMode ? 'bg-slate-800/40' : 'bg-white/40'} backdrop-blur-md  shadow-lg`}>
-              <cite className={`${textAccent} text-sm font-semibold not-italic flex items-center space-x-2 tracking-wide`}>
+              <cite className={`${textAccent} text-md font-semibold not-italic flex items-center space-x-2 tracking-wide`}>
                 <span>— {currentQuote.author}</span>
               </cite>
             </div>

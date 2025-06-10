@@ -13,13 +13,13 @@ const icons = {
 };
 
 const colors = {
-  stressed: "bg-red-100 text-red-800",
-  relaxed: "bg-blue-100 text-blue-800",
-  happy: "bg-green-100 text-green-800",
-  focused: "bg-yellow-100 text-yellow-800",
-  neutral: "bg-gray-100 text-gray-800",
-  mild_stress: "bg-orange-100 text-orange-800",
-  no_data: "bg-gray-200 text-gray-500 animate-pulse"
+  stressed: " text-red-800",
+  relaxed: " text-blue-800",
+  happy: " text-green-800",
+  focused: " text-yellow-800",
+  neutral: " text-gray-800",
+  mild_stress: " text-orange-800",
+  no_data: " text-white animate-pulse"
 };
 
 export type State = keyof typeof icons;

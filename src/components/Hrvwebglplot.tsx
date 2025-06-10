@@ -1,5 +1,5 @@
 'use client';
-import React, { useEffect, useRef, useImperativeHandle, forwardRef } from 'react';
+import React, { useEffect, useRef, useImperativeHandle, forwardRef ,useCallback} from 'react';
 import { WebglPlot, WebglLine, ColorRGBA } from 'webgl-plot';
 
 export type HRVPlotCanvasHandle = {
@@ -9,18 +9,19 @@ export type HRVPlotCanvasHandle = {
     updateHRV: (hrv: number) => void;
     /** Get the canvas element */
     getCanvas: () => HTMLCanvasElement | null;
-};
+    darkMode: boolean; };
 
 type Props = {
     /** Number of points to display */
     numPoints?: number;
     /** Hex color for the line */
     color?: string;
+    darkMode?: boolean;
 };
 
 
 const HRVPlotCanvas = forwardRef<HRVPlotCanvasHandle, Props>(
-    ({ numPoints = 2000, color = '#d97706' }, ref) => {
+    ({ numPoints = 2000, color = '#d97706',darkMode = false }, ref) => {
         const canvasRef = useRef<HTMLCanvasElement>(null);
         const plotRef = useRef<WebglPlot | null>(null);
         const lineRef = useRef<WebglLine | null>(null);
@@ -49,8 +50,80 @@ const HRVPlotCanvas = forwardRef<HRVPlotCanvasHandle, Props>(
                 plotRef.current?.update();
             },
             getCanvas: () => canvasRef.current,
-        }), []);
-
+            darkMode: darkMode,
+        }), [darkMode]);
+        console.log(darkMode);
+        const containerRef = useRef<HTMLDivElement>(null)
+        // Constants (could be props if needed)
+        const samplingRate = 500
+        const selectedBits = 10
+        const theme = 'dark'
+        const gridCreatedRef = useRef(false) // Track if grid has been created
+        const createGridLines = useCallback(() => {
+            if (!containerRef.current) return;
+            
+            // Clear existing grid lines if they exist
+            const existingWrapper = containerRef.current.querySelector('.grid-lines-wrapper');
+            if (existingWrapper) {
+                containerRef.current.removeChild(existingWrapper);
+            }
+        
+            const canvasWrapper = document.createElement("div");
+            canvasWrapper.className = "grid-lines-wrapper absolute inset-0 pointer-events-none";
+        
+            const opacityDarkMajor = "0.2";
+            const opacityDarkMinor = "0.05";
+            const opacityLightMajor = "0.4";
+            const opacityLightMinor = "0.1";
+            const distanceminor = samplingRate * 0.04;
+            const numGridLines = (Math.pow(2, selectedBits) * 4 / distanceminor);
+        
+            // Vertical lines
+            for (let j = 1; j < numGridLines; j++) {
+                const gridLineX = document.createElement("div");
+                gridLineX.className = "absolute bg-[rgb(128,128,128)]";
+                gridLineX.style.width = "1px";
+                gridLineX.style.height = "100%";
+                gridLineX.style.left = `${((j / numGridLines) * 100).toFixed(3)}%`;
+                gridLineX.style.opacity = j % 5 === 0
+                    ? (darkMode ? opacityDarkMajor : opacityLightMajor)
+                    : (darkMode ? opacityDarkMinor : opacityLightMinor);
+                canvasWrapper.appendChild(gridLineX);
+            }
+        
+            // Horizontal lines with labels
+            const horizontalline = 70;
+            const maxValue = 1400;
+            for (let j = 1; j < horizontalline; j++) {
+                const gridLineY = document.createElement("div");
+                gridLineY.className = "absolute bg-[rgb(128,128,128)]";
+                gridLineY.style.height = "1px";
+                gridLineY.style.width = "100%";
+                gridLineY.style.top = `${((j / horizontalline) * 100).toFixed(3)}%`;
+                const isMajorLine = j % 5 === 0;
+                gridLineY.style.opacity = isMajorLine
+                    ? (darkMode ? opacityDarkMajor : opacityLightMajor)
+                    : (darkMode ? opacityDarkMinor : opacityLightMinor);
+                canvasWrapper.appendChild(gridLineY);
+        
+                if (isMajorLine) {
+                    const labelValue = Math.round(maxValue - (j / horizontalline) * maxValue);
+                    if (labelValue % 200 === 0 || labelValue === 0 || labelValue === maxValue) {
+                        const label = document.createElement("div");
+                        label.className = "absolute text-[0.65rem] pointer-events-none";
+                        label.style.left = "4px";
+                        label.style.top = `${((j / horizontalline) * 100).toFixed(3)}%`;
+                        label.style.transform = "translateY(-50%)";
+                        label.style.color = darkMode ? "rgba(255,255,255,0.7)" : "rgba(0,0,0,0.7)";
+                        label.textContent = labelValue.toString();
+                        canvasWrapper.appendChild(label);
+                    }
+                }
+            }
+        
+            containerRef.current.appendChild(canvasWrapper);
+        }, [darkMode]);
+        createGridLines();
         useEffect(() => {
             const canvas = canvasRef.current!;
             const resize = () => {
@@ -75,7 +148,16 @@ const HRVPlotCanvas = forwardRef<HRVPlotCanvasHandle, Props>(
             };
         }, []);
 
+        useEffect(() => {
+            const handleResize = () => {
+                createGridLines();
 
+            };
+            window.addEventListener("resize", handleResize);
+            return () => {
+                window.removeEventListener("resize", handleResize);
+            };
+        }, [createGridLines]);
         // Update the initialization part in HRVPlotCanvas.tsx
         useEffect(() => {
             if (!canvasRef.current) return;
@@ -107,10 +189,13 @@ const HRVPlotCanvas = forwardRef<HRVPlotCanvasHandle, Props>(
 
 
         return (
-            <canvas
-                ref={canvasRef}
-                style={{ width: '100%', height: '100%'}}
-            />
+            <div ref={containerRef} className="relative w-full h-full">
+
+                <canvas
+                    ref={canvasRef}
+                    style={{ width: '100%', height: '100%' }}
+                />
+            </div>
         );
     }
 );

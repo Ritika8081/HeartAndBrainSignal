@@ -41,10 +41,10 @@ type Props = {
     const sweepRef = useRef(0)
     const containerRef = useRef<HTMLDivElement>(null)
        // Constants (could be props if needed)
-       const samplingRate = 500
-       const selectedBits = 10
-       const theme = 'dark'
-       const gridCreatedRef = useRef(false) // Track if grid has been created
+       const samplingRate = 500;
+       const selectedBits = 10;
+       const theme = 'dark';
+       const gridCreatedRef = useRef(false);// Track if grid has been created
 
     // Create grid lines (only once)
     const createGridLines = () => {
@@ -155,7 +155,17 @@ type Props = {
       sweepRef.current = 0
       createGridLines()
     }
+   useEffect(() => {
+            const handleResize = () => {
+                createGridLines();
+                initWebglPlot();
 
+            };
+            window.addEventListener("resize", handleResize);
+            return () => {
+                window.removeEventListener("resize", handleResize);
+            };
+        }, [createGridLines,initWebglPlot]);
     // 1) Initial setup effect
     useEffect(() => {
       initWebglPlot()
