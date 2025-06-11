@@ -1,26 +1,23 @@
-# 🧘‍♀️ Qalma – Real-Time Neurofeedback Meditation Platform
-
-“Qalma – Where Calm Meets Clarity”
-
+# 🧘‍♀️ CortEX – Real-Time Neurofeedback Meditation Platform
 
 ## 📝 Project Overview
 
-**Qalma** is a cutting-edge, real-time web application designed to empower users through neurofeedback during meditation. Built using **Next.js**, **React**, and **TypeScript**, the platform integrates **EEG** and **ECG** biopotential signals via **Bluetooth Low Energy (BLE)** to deliver a personalized, data-driven meditation experience.
+**CortEX** is a cutting-edge, real-time web application designed to empower users through neurofeedback during meditation. Built using **Next.js** and **TypeScript**, the platform integrates **EEG** and **ECG** biopotential signals via **Bluetooth Low Energy (BLE)** to deliver a personalized, data-driven meditation experience.
 
 ---
 
 ## 🔌 Hardware Requirement
 
-To use Qalma effectively, you'll need:
+To use CortEX effectively, you'll need:
 
 ### 🧠 [NPG Lite (Neuro PlayGround Lite)](https://www.crowdsupply.com/upside-down-labs/neuro-playground-lite)
 A BLE-enabled biopotential signal board designed for:
 
 - ✅ EEG (Electroencephalogram)
 - ✅ ECG (Electrocardiogram)
-- ✅ Optional EMG/EOG via analog channels
+- ✅ EMG/EOG via analog channels
 
-> 💡 Qalma uses the NPG Lite’s BLE stream for real-time brain and heart activity visualization.
+> 💡 CortEX uses the NPG Lite’s BLE stream for real-time brain and heart activity visualization.
 
 
 ## 🔑 Core Features
@@ -96,11 +93,9 @@ Handled in **Web Workers** to ensure real-time performance:
   - **RMSSD** (*Root Mean Square of Successive Differences*): Measures short-term vagal (parasympathetic) activity
   - **pNN50** (*Percentage of successive NN intervals differing by >50 ms*): Indicator of parasympathetic nervous system strength
 
----
 
 ## 💻 Code Structure
 
----
 
 ## 🎨 UI/UX Highlights
 
@@ -132,13 +127,13 @@ Built with great open-source tools and libraries:
 - Embla Carousel for UI interactions  
 - ESLint, PostCSS, and DefinitelyTyped type definitions
 
-Thanks to all the amazing open-source communities!
+Thanks to all the amazing communities!
 
 ---
 
 ## 🧠 Summary Comparison Table
 
-| Feature                        | Traditional Apps         | 🧘 Qalma                                         |
+| Feature                        | Traditional Apps         | 🧘 CortEX                                         |
 |-------------------------------|--------------------------|-------------------------------------------------|
 | EEG/ECG Integration           | ❌ Uses timers/audio      | ✅ Real EEG/ECG via BLE                          |
 | Real-Time Feedback           | ❌ Post-session only      | ✅ Live state updates, synced animations         |
@@ -163,24 +158,27 @@ Thanks to all the amazing open-source communities!
 
 Coming soon!
 
----
+
+## 📝 Author
 
 💫 Built with love, neurons, and a sprinkle of curiosity by [Ritika Mishra](https://github.com/Ritika8081) – decoding mindfulness, brainwave and heartwave.
 
-## 📝 License
-
-This project is licensed under the **MIT License** – see the [LICENSE](LICENSE) file for details.
-
 ## 🤝 Contributing
 
-Thank you for your interest in contributing — your support helps shape the future of Chords-Web and Qalma. 🙌
-
-At Qalma, we celebrate collaboration, curiosity, and creativity.
-
-Whether you're a neuroscientist, developer, designer, or simply someone deeply fascinated by the mind and inner states — there's a place for you here. Let's build meaningful, mindful experiences together.
+Thank you for your interest in contributing — your support helps shape the CortEX. 🙌
 
 <center>
 <a href="https://github.com/Ritika8081/Meditation_Medusa/graphs/contributors">
   <img src="https://contrib.rocks/image?repo=ritika8081/Meditation_Medusa" />
 </a>
 </center>
+
+At CortEX, we celebrate collaboration, curiosity, and creativity.
+
+Whether you're a neuroscientist, developer, designer, or simply someone deeply fascinated by the mind and inner states — there's a place for you here. Let's build meaningful, mindful experiences together.
+
+---
+
+## 📝 License
+
+This project is licensed under the **MIT License** – see the [LICENSE](LICENSE) file for details.
