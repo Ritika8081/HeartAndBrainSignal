@@ -192,7 +192,6 @@ export const MeditationSession = ({
             (sum, [band, weight]) => sum + (weight ?? 0) * (averages[band as keyof typeof averages] || 0),
             0
         );
-
         const focusScore = ((averages.alpha + averages.theta) / (averages.beta + 0.001)).toFixed(2);
 
         setSessionResults({
