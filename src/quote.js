@@ -8,11 +8,6 @@ export const healthQuotes = [
     category: "fitness"
   },
   
-  {
-    text: "Strength does not come from physical capacity. It comes from an indomitable will.",
-    author: "Mahatma Gandhi",
-    category: "fitness"
-  },
   
   {
     text: "Take care of your body. It's the only place you have to live.",
@@ -49,11 +44,6 @@ export const healthQuotes = [
   {
     text: "Sleep is the best meditation.",
     author: "Dalai Lama",
-    category: "lifestyle"
-  },
-  {
-    text: "Water is life's matter and matrix, mother and medium. There is no life without water.",
-    author: "Albert Szent-Gyorgyi",
     category: "lifestyle"
   },
 

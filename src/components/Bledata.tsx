@@ -67,7 +67,7 @@ export function useBleStream(datastreamCallback?: (data: number[]) => void) {
       dataRef.current = await svc.getCharacteristic(DATA_CHAR_UUID);
       setConnected(true);
       setInterval(() => {
-        console.log("Samples per second: " + samplesReceived);
+      
         if (samplesReceived === 0) {
           disconnect();
           window.location.reload();
@@ -77,7 +77,7 @@ export function useBleStream(datastreamCallback?: (data: number[]) => void) {
       // Automatically send START command after successful connection
       await start();
     } catch (error) {
-      console.log("Error: " + (error instanceof Error ? error.message : error));
+   
     }
   };
 

@@ -53,7 +53,7 @@ const HRVPlotCanvas = forwardRef<HRVPlotCanvasHandle, Props>(
             getCanvas: () => canvasRef.current,
             darkMode: darkMode,
         }), [darkMode]);
-        console.log(darkMode);
+       
         const containerRef = useRef<HTMLDivElement>(null)
         // Constants (could be props if needed)
         const samplingRate = 500
@@ -84,7 +84,7 @@ const HRVPlotCanvas = forwardRef<HRVPlotCanvasHandle, Props>(
             const linesPerMajorSegmentv = 2; // 1 major + 1 minor line per segment
             const totalMajorSegmentsv = Math.ceil(numGridLines / majorLineStepv);
             const totalLinesv = totalMajorSegmentsv * linesPerMajorSegmentv;
-            console.log(darkMode);
+            
             for (let j = 1; j < totalLinesv; j++) {
                 // Check if this is a major line (every linesPerMajorSegment-th line)
                 const isMajorLine = j % linesPerMajorSegmentv === 0;
