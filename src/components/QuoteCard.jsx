@@ -56,7 +56,7 @@ const QuoteCard = ({ cardBg = 'bg-white', refreshInterval = 30000, darkMode = fa
     } else if (quoteLength < 100) {
       return "text-sm sm:text-sm md:text-sm lg:text-sm xl:text-lg 2xl:text-2xl";
     } else if (quoteLength < 150) {
-      return "text-sm sm:text-sm md:text-sm lg:text-sm xl:text-lg 2xl:text-2xl";
+      return "text-sm sm:text-sm md:text-sm lg:text-sm xl:text-lg 2xl:text-xl";
     } else {
       return "text-sm sm:text-sm md:text-sm";
     }
@@ -91,7 +91,7 @@ const QuoteCard = ({ cardBg = 'bg-white', refreshInterval = 30000, darkMode = fa
         {/* Enhanced author attribution */}
         <footer className="relative z-10 w-full mb-8">
           <div className="flex justify-center">
-            <div className={`px-6 py-3 rounded-2xl ${darkMode ? 'bg-slate-800/40' : 'bg-white/40'} backdrop-blur-md  shadow-lg`}>
+            <div className={`px-6 py-3 rounded-2xl backdrop-blur-md  shadow-lg`}>
               <cite className={`${textAccent} text-md font-semibold not-italic flex items-center space-x-2 tracking-wide`}>
                 <span>— {currentQuote.author}</span>
               </cite>

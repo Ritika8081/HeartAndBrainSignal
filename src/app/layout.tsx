@@ -13,7 +13,7 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "Meditation Medusa",
+  title: "CortEX",
   description: "EEG-based meditation analysis and visualization",
 };
 

@@ -601,7 +601,7 @@ export default function SignalVisualizer() {
                                                                 <div className="flex flex-col gap-2 ">
                                                                     {/* Mental State Indicator */}
                                                                     <div className="text-center py-3 px-4 sm:py-4 sm:px-6 rounded-xl bg-gradient-to-r from-blue-50 to-indigo-50 dark:from-blue-900/20 dark:to-indigo-900/20 border border-blue-200 dark:border-blue-800" style={{ padding: '6px' }}>
-                                                                        <div className="text-sm sm:text-base md:text-lg font-bold text-[#548687] mb-2">
+                                                                        <div className="text-sm sm:text-base md:text-lg font-bold text-[#FF352E] mb-2">
                                                                             {results.mostFrequent === 'alpha' ? '🧘 Deep Relaxation' :
                                                                                 results.mostFrequent === 'theta' ? '🛌 Profound Meditation' :
                                                                                     results.mostFrequent === 'beta' ? '🎯 Active Focus' :
@@ -614,8 +614,8 @@ export default function SignalVisualizer() {
 
                                                                     {/* Summary Grid */}
                                                                     <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-                                                                        <div className="p-3 rounded-xl bg-indigo-100 dark:bg-indigo-900/20 border border-indigo-300 dark:border-indigo-800 text-center">
-                                                                            <div className="text-xs font-semibold text-indigo-600 dark:text-indigo-400 uppercase mb-2" style={{ padding: '6px' }}>
+                                                                        <div className="p-3 rounded-xl bg-indigo-100 dark:bg-indigo-900/20 border border-indigo-300 dark:border-indigo-800 text-center" style={{ padding: '6px' }}>
+                                                                            <div className="text-xs font-semibold text-indigo-600 dark:text-indigo-400 uppercase mb-2" >
                                                                                 Dominant State
                                                                             </div>
                                                                             <div className="text-sm font-bold capitalize text-gray-800 dark:text-gray-200">
@@ -623,8 +623,8 @@ export default function SignalVisualizer() {
                                                                             </div>
                                                                         </div>
 
-                                                                        <div className="p-3 rounded-xl bg-cyan-100 dark:bg-cyan-900/20 border border-blue-300 dark:border-blue-800 text-center">
-                                                                            <div className="text-xs font-semibold text-blue-600 dark:text-blue-400 uppercase mb-2" style={{ padding: '6px' }}>
+                                                                        <div className="p-3 rounded-xl bg-cyan-100 dark:bg-cyan-900/20 border border-blue-300 dark:border-blue-800 text-center" style={{ padding: '6px' }}>
+                                                                            <div className="text-xs font-semibold text-blue-600 dark:text-blue-400 uppercase mb-2" >
                                                                                 Session Duration
                                                                             </div>
                                                                             <div className="text-sm font-bold text-gray-800 dark:text-gray-200">
@@ -632,8 +632,8 @@ export default function SignalVisualizer() {
                                                                             </div>
                                                                         </div>
 
-                                                                        <div className="p-3 rounded-xl bg-emerald-100 dark:bg-emerald-900/20 border border-emerald-300 dark:border-emerald-800 text-center">
-                                                                            <div className="text-xs font-semibold text-emerald-600 dark:text-emerald-400 uppercase mb-2" style={{ padding: '6px' }}>
+                                                                        <div className="p-3 rounded-xl bg-emerald-100 dark:bg-emerald-900/20 border border-emerald-300 dark:border-emerald-800 text-center" style={{ padding: '6px' }}>
+                                                                            <div className="text-xs font-semibold text-emerald-600 dark:text-emerald-400 uppercase mb-2" >
                                                                                 Brain Symmetry
                                                                             </div>
                                                                             <div className="text-sm font-bold text-gray-800 dark:text-gray-200">
@@ -659,7 +659,7 @@ export default function SignalVisualizer() {
                                                                                     style={{ padding: '6px' }}
                                                                                 >
                                                                                     <span className="text-xs sm:text-sm font-medium text-gray-700 dark:text-gray-300">{state}</span>
-                                                                                    <span className="text-sm font-bold text-[#548687]">{pct}%</span>
+                                                                                    <span className="text-sm font-bold text-[#5FB9BA]">{pct}%</span>
                                                                                 </div>
                                                                             ))}
                                                                         </div>
