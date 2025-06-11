@@ -15,7 +15,7 @@ export type WebglPlotCanvasHandle = {
   getCanvas: () => HTMLCanvasElement | null
 
   updateData: (channeldata: number[]) => void 
-
+  gridnumber:number
 }
 
 function hexToColorRGBA(hex: string): ColorRGBA {
@@ -30,11 +30,12 @@ type Props = {
 
   channels: number[]
   colors: Record<number, string>
+  gridnumber: number
  
 }
 
  const WebglPlotCanvas = forwardRef<WebglPlotCanvasHandle, Props>(
-  ({ channels, colors }, ref) => {
+  ({ channels, colors,gridnumber }, ref) => {
     const canvasRef = useRef<HTMLCanvasElement>(null)
     const wglpRef = useRef<WebglPlot | null>(null)
     const linesRef = useRef<Record<string, WebglLine>>({})
@@ -75,13 +76,12 @@ type Props = {
       }
 
       // Horizontal lines
-      const horizontalline = 50
-      for (let j = 1; j < horizontalline; j++) {
+      for (let j = 1; j < gridnumber; j++) {
         const gridLineY = document.createElement("div")
         gridLineY.className = "absolute bg-[rgb(128,128,128)]"
         gridLineY.style.height = "1px"
         gridLineY.style.width = "100%"
-        gridLineY.style.top = `${((j / horizontalline) * 100).toFixed(3)}%`
+        gridLineY.style.top = `${((j / gridnumber) * 100).toFixed(3)}%`
         gridLineY.style.opacity = j % 5 === 0
           ? (theme === "dark" ? opacityDarkMajor : opacityLightMajor)
           : (theme === "dark" ? opacityDarkMinor : opacityLightMinor)
@@ -113,7 +113,8 @@ type Props = {
           sweepRef.current = (idx + 1) % n;
 
           wglpRef.current?.update();
-        }
+        },
+        gridnumber:gridnumber
       }),
       [channels] // should depend on channels
     )

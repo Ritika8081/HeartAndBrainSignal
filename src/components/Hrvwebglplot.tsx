@@ -1,5 +1,5 @@
 'use client';
-import React, { useEffect, useRef, useImperativeHandle, forwardRef ,useCallback} from 'react';
+import React, { useEffect, useRef, useImperativeHandle, forwardRef, useCallback } from 'react';
 import { WebglPlot, WebglLine, ColorRGBA } from 'webgl-plot';
 
 export type HRVPlotCanvasHandle = {
@@ -9,7 +9,8 @@ export type HRVPlotCanvasHandle = {
     updateHRV: (hrv: number) => void;
     /** Get the canvas element */
     getCanvas: () => HTMLCanvasElement | null;
-    darkMode: boolean; };
+    darkMode: boolean;
+};
 
 type Props = {
     /** Number of points to display */
@@ -21,7 +22,7 @@ type Props = {
 
 
 const HRVPlotCanvas = forwardRef<HRVPlotCanvasHandle, Props>(
-    ({ numPoints = 2000, color = '#d97706',darkMode = false }, ref) => {
+    ({ numPoints = 2000, color = '#d97706', darkMode = false }, ref) => {
         const canvasRef = useRef<HTMLCanvasElement>(null);
         const plotRef = useRef<WebglPlot | null>(null);
         const lineRef = useRef<WebglLine | null>(null);
@@ -61,58 +62,90 @@ const HRVPlotCanvas = forwardRef<HRVPlotCanvasHandle, Props>(
         const gridCreatedRef = useRef(false) // Track if grid has been created
         const createGridLines = useCallback(() => {
             if (!containerRef.current) return;
-            
+
             // Clear existing grid lines if they exist
             const existingWrapper = containerRef.current.querySelector('.grid-lines-wrapper');
             if (existingWrapper) {
                 containerRef.current.removeChild(existingWrapper);
             }
-        
+
             const canvasWrapper = document.createElement("div");
             canvasWrapper.className = "grid-lines-wrapper absolute inset-0 pointer-events-none";
-        
+
             const opacityDarkMajor = "0.2";
             const opacityDarkMinor = "0.05";
-            const opacityLightMajor = "0.4";
+            const opacityLightMajor = "0.2";
             const opacityLightMinor = "0.1";
             const distanceminor = samplingRate * 0.04;
             const numGridLines = (Math.pow(2, selectedBits) * 4 / distanceminor);
-        
-            // Vertical lines
-            for (let j = 1; j < numGridLines; j++) {
+
+            // Vertical lines - modified to show only one minor line between major lines
+            const majorLineStepv = 5; // Original major line spacing
+            const linesPerMajorSegmentv = 2; // 1 major + 1 minor line per segment
+            const totalMajorSegmentsv = Math.ceil(numGridLines / majorLineStepv);
+            const totalLinesv = totalMajorSegmentsv * linesPerMajorSegmentv;
+            console.log(darkMode);
+            for (let j = 1; j < totalLinesv; j++) {
+                // Check if this is a major line (every linesPerMajorSegment-th line)
+                const isMajorLine = j % linesPerMajorSegmentv === 0;
+
+                // Calculate the original position index
+                const originalPositionIndex = (j / linesPerMajorSegmentv) * majorLineStepv;
+
+                // Skip if we exceed the original numGridLines
+                if (originalPositionIndex >= numGridLines) continue;
+
                 const gridLineX = document.createElement("div");
                 gridLineX.className = "absolute bg-[rgb(128,128,128)]";
                 gridLineX.style.width = "1px";
                 gridLineX.style.height = "100%";
-                gridLineX.style.left = `${((j / numGridLines) * 100).toFixed(3)}%`;
-                gridLineX.style.opacity = j % 5 === 0
+                gridLineX.style.left = `${((originalPositionIndex / numGridLines) * 100).toFixed(3)}%`;
+                gridLineX.style.opacity = isMajorLine
                     ? (darkMode ? opacityDarkMajor : opacityLightMajor)
                     : (darkMode ? opacityDarkMinor : opacityLightMinor);
                 canvasWrapper.appendChild(gridLineX);
             }
-        
+
             // Horizontal lines with labels
-            const horizontalline = 70;
+            const horizontalline = 35;
             const maxValue = 1400;
-            for (let j = 1; j < horizontalline; j++) {
+            // Calculate the step between major lines (5 units apart in your original code)
+            const majorLineStep = 5;
+            // We want only one minor line between major lines, so total lines per major segment is 2 (1 major + 1 minor)
+            const linesPerMajorSegment = 2;
+            // Total major segments is horizontalline / majorLineStep
+            const totalMajorSegments = Math.ceil(horizontalline / majorLineStep);
+            // New total lines is totalMajorSegments * linesPerMajorSegment
+            const totalLines = totalMajorSegments * linesPerMajorSegment;
+
+            for (let j = 1; j < totalLines; j++) {
+                // Check if this is a major line (every linesPerMajorSegment-th line)
+                const isMajorLine = j % linesPerMajorSegment === 0;
+
+                // Calculate the original position index (j / linesPerMajorSegment * majorLineStep)
+                const originalPositionIndex = (j / linesPerMajorSegment) * majorLineStep;
+
+                // Only proceed if we haven't exceeded our original horizontalline count
+                if (originalPositionIndex >= horizontalline) continue;
+
                 const gridLineY = document.createElement("div");
                 gridLineY.className = "absolute bg-[rgb(128,128,128)]";
                 gridLineY.style.height = "1px";
                 gridLineY.style.width = "100%";
-                gridLineY.style.top = `${((j / horizontalline) * 100).toFixed(3)}%`;
-                const isMajorLine = j % 5 === 0;
+                gridLineY.style.top = `${((originalPositionIndex / horizontalline) * 100).toFixed(3)}%`;
+
                 gridLineY.style.opacity = isMajorLine
                     ? (darkMode ? opacityDarkMajor : opacityLightMajor)
                     : (darkMode ? opacityDarkMinor : opacityLightMinor);
+
                 canvasWrapper.appendChild(gridLineY);
-        
                 if (isMajorLine) {
-                    const labelValue = Math.round(maxValue - (j / horizontalline) * maxValue);
+                    const labelValue = Math.round(maxValue - (originalPositionIndex / horizontalline) * maxValue);
                     if (labelValue % 200 === 0 || labelValue === 0 || labelValue === maxValue) {
                         const label = document.createElement("div");
                         label.className = "absolute text-[0.65rem] pointer-events-none";
                         label.style.left = "4px";
-                        label.style.top = `${((j / horizontalline) * 100).toFixed(3)}%`;
+                        label.style.top = `${((originalPositionIndex / horizontalline) * 100).toFixed(3)}%`;
                         label.style.transform = "translateY(-50%)";
                         label.style.color = darkMode ? "rgba(255,255,255,0.7)" : "rgba(0,0,0,0.7)";
                         label.textContent = labelValue.toString();
@@ -120,7 +153,7 @@ const HRVPlotCanvas = forwardRef<HRVPlotCanvasHandle, Props>(
                     }
                 }
             }
-        
+
             containerRef.current.appendChild(canvasWrapper);
         }, [darkMode]);
         createGridLines();

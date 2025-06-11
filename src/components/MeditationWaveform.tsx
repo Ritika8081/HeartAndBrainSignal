@@ -1,5 +1,5 @@
 'use client'
-import React, { useRef, useEffect } from 'react';
+import React, { useRef, useEffect,useState } from 'react';
 import { Award } from 'lucide-react';
 
 interface EEGSample {
@@ -145,30 +145,56 @@ const MeditationAnalysis: React.FC<Props> = ({
   const metrics = calculateMetrics();
   const meditationScore = Math.min(100, Math.round((metrics.flowState ?? 0) * 100));
 
+  const [canvasSize, setCanvasSize] = useState({ width: 0, height: 0 });
 
+  // Set up resize observer to handle container size changes
+  useEffect(() => {
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+
+    const resizeObserver = new ResizeObserver(entries => {
+      const { width, height } = entries[0].contentRect;
+      setCanvasSize({ width, height });
+    });
+
+    resizeObserver.observe(canvas.parentElement!);
+
+    return () => resizeObserver.disconnect();
+  }, []);
   // Replace the useEffect canvas rendering with this:
+  
   useEffect(() => {
     const canvas = canvasRef.current;
     const ctx = canvas?.getContext('2d');
-    if (!canvas || !ctx || !data.length) return;
+    if (!canvas || !ctx || !data.length || canvasSize.width === 0) return;
 
-    const width = canvas.width;
-    const height = canvas.height;
+    // Get device pixel ratio for crisp rendering on high-DPI displays
+    const dpr = window.devicePixelRatio || 1;
+    
+    // Set canvas resolution to match display size
+    canvas.width = canvasSize.width * dpr;
+    canvas.height = canvasSize.height * dpr;
+    
+    // Scale the context to account for the higher resolution
+    ctx.scale(dpr, dpr);
+
+    const width = canvasSize.width;
+    const height = canvasSize.height;
     const padding = 20;
     const barWidth = (width - padding * 2) / 12; // Fixed 12 phases
     const maxBarHeight = height - padding * 2;
 
-    ctx.clearRect(0, 0, width, height);
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
 
     // Background solid color
     ctx.fillStyle = 'rgba(15, 23, 42, 0.7)';
     ctx.fillRect(0, 0, width, height);
 
     const stateColors = {
-      relaxed: '#34d399',     // mint green - Apple Watch wellness green
-      focused: '#f97316',     // vibrant orange - activity/energy indicator
-      deep: '#6366f1',        // electric blue - tech sophistication
-      drowsy: '#9ca3af'       // cool gray - subtle, non-intrusive
+      relaxed: '#34d399',
+      focused: '#f97316',
+      deep: '#6366f1',
+      drowsy: '#9ca3af'
     };
 
     metrics.phases.forEach((phase, i) => {
@@ -180,9 +206,9 @@ const MeditationAnalysis: React.FC<Props> = ({
       const states = ['drowsy', 'deep', 'focused', 'relaxed'] as const;
 
       states.forEach((state, stateIndex) => {
-        const stateHeight = phase.stateHeights[state] * maxBarHeight * 0.8; // Scale down for better visibility
+        const stateHeight = phase.stateHeights[state] * maxBarHeight * 0.8;
 
-        if (stateHeight > 2) { // Only draw if significant
+        if (stateHeight > 2) {
           ctx.fillStyle = stateColors[state];
           ctx.beginPath();
           ctx.roundRect(x + 2, currentY - stateHeight, barWidth - 4, stateHeight, 2);
@@ -195,21 +221,18 @@ const MeditationAnalysis: React.FC<Props> = ({
 
     // Time labels
     ctx.fillStyle = 'rgba(148, 163, 184, 0.6)';
-    ctx.font = '10px system-ui';
+    ctx.font = '14px system-ui';
     ctx.textAlign = 'center';
-    // Calculate actual session duration in seconds from timestamp data
+    
     let actualSessionDurationSeconds: number;
     if (data.length > 1 && data[0].timestamp && data[data.length - 1].timestamp) {
       actualSessionDurationSeconds = (data[data.length - 1].timestamp! - data[0].timestamp!) / 1000;
     } else {
-      // Fallback to sessionDuration prop if timestamps not available
       actualSessionDurationSeconds = sessionDuration * 60;
     }
 
-    // Calculate time per phase in seconds (divide by 12 phases)
     const timePerPhase = actualSessionDurationSeconds / 12;
 
-    // Show labels for every 3rd phase (0, 3, 6, 9, 12) to avoid overcrowding
     for (let i = 0; i <= 12; i += 3) {
       const x = padding + (width - padding * 2) * (i / 12);
       const timeInSeconds = Math.round(timePerPhase * i);
@@ -225,7 +248,7 @@ const MeditationAnalysis: React.FC<Props> = ({
 
       ctx.fillText(timeLabel, x, height - 5);
     }
-  }, [data, metrics.phases, sessionDuration]);
+  }, [data, metrics.phases, sessionDuration, canvasSize]);
 
 
   const getPhaseColor = (phase: string) => {
@@ -242,16 +265,25 @@ const MeditationAnalysis: React.FC<Props> = ({
 
   return (
     <div className={`w-full  h-full  bg-slate-800 rounded-sm overflow-hidden shadow-2xl ${className}`}>
-      <div className="p-6" style={{ padding: '10px' }}>
+ <div className="p-6" style={{ padding: '10px' }}>
         {/* Phases Canvas */}
-        <div className="mb-4" >
+        <div className="mb-4">
           <div className="flex items-center justify-between mb-2" style={{ padding: '10px' }}>
             <span className="text-sm text-slate-400">Session Phases</span>
             <span className="text-xs text-slate-500">{metrics.phases.length} phases detected</span>
           </div>
-          <canvas ref={canvasRef} width={320} height={120} className="w-full rounded-xl" />
+          <div className="w-full h-[120px]">
+            <canvas 
+              ref={canvasRef} 
+              className="w-full h-full rounded-xl"
+              style={{
+                width: '100%',
+                height: '100%',
+                display: 'block' // Removes extra space below canvas
+              }}
+            />
+          </div>
         </div>
-
         {/* Meditation Breakdown */}
         <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 mb-6 h-20">
 

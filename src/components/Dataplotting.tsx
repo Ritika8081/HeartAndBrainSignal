@@ -462,7 +462,7 @@ export default function SignalVisualizer() {
                         <Activity className={`${primaryAccent} w-4 h-4 sm:w-5 sm:h-5 md:w-6 md:h-6 lg:w-7 lg:h-7`} />
                         <h1 className="text-sm sm:text-base md:text-lg lg:text-xl xl:text-2xl font-light tracking-tight">
                             <span className={`font-bold ${textPrimary}`}>Cort</span>
-                            <span className={`${primaryAccent} font-medium ml-1`}>EX</span>
+                            <span className={`${primaryAccent} font-bold ml-1`}>EX</span>
                         </h1>
                     </div>
                     <div className="flex items-center" style={{ gap: '1.25rem' }}>
@@ -889,6 +889,7 @@ export default function SignalVisualizer() {
                                     ref={canvaseeg1Ref}
                                     channels={[0]} // EEG Channel 0
                                     colors={{ 0: CHANNEL_COLORS.ch0 }}
+                                    gridnumber={50}
                                 />
                             </div>
                             {/* Chart 2 */}
@@ -897,6 +898,7 @@ export default function SignalVisualizer() {
                                     ref={canvaseeg2Ref}
                                     channels={[1]} // EEG Channel 1
                                     colors={{ 1: CHANNEL_COLORS.ch1 }}
+                                    gridnumber={50}
                                 />
                             </div>
 
@@ -1095,6 +1097,7 @@ export default function SignalVisualizer() {
                                 ref={canvasecgRef}
                                 channels={[2]} // ECG Channel 2
                                 colors={{ 2: CHANNEL_COLORS.ch2 }}
+                                gridnumber={100}
                             />
                         </div>
                     </div>
@@ -1107,7 +1110,8 @@ export default function SignalVisualizer() {
                 style={{ paddingLeft: '0.3125rem', paddingRight: '0.3125rem' }}>
                 <div className="w-full h-full flex flex-col sm:flex-row justify-between items-center" style={{ paddingLeft: '1.25rem', paddingRight: '1.25rem' }}>
                     <div className={`${textSecondary} text-xs sm:text-sm md:text-base mb-1 sm:mb-0`}>
-                        <span className="font-medium">CortEX</span> | &copy; {new Date().getFullYear()}{" "}     <Link href="https://upsidedownlabs.tech/" target="_blank">
+                        <span className="font-medium">CortEX</span> | &copy; {new Date().getFullYear()}{" "}  
+                           <Link href="https://upsidedownlabs.tech/" target="_blank">
                             Upside Down Labs
                         </Link>
                     </div>
